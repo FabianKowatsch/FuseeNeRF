@@ -50,6 +50,10 @@ namespace InstantNeRF
 
                     (Tensor inputGrad, Tensor paramsGrad) = new ModuleFunctionBackward().Apply(this.context, outputGrad, input, parameters, output);
 
+                    Utils.printFirstNValues(outputGrad, 3, "output gradient");
+                    Utils.printFirstNValues(inputGrad, 3, "input gradient");
+                    Utils.printFirstNValues(paramsGrad, 3, "params gradient");
+
                     input.backward(new List<Tensor> { (inputGrad).nan_to_num() });
 
                     if(parameters.numel() > 0)

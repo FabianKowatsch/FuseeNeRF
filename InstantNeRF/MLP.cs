@@ -45,23 +45,20 @@ namespace InstantNeRF
 
 
             Console.WriteLine("sigma---------------------------");
-            Tensor h = sigmaNet.forward(positions);
+            Tensor sigmaOut = sigmaNet.forward(positions);
 
 
             //long lastDim = h.Dimensions - 1L;
 
-            Utils.printFirstNValues(h, 4, "h");
+            Tensor sigmaRawSliced = sigmaOut.slice(-1, 0L, 1L, 1L).squeeze(-1);
 
-            Tensor hSliced = h.slice(-1, 0L, 1L, 1L).squeeze(-1);
-
-            Utils.printFirstNValues(hSliced, 4, "h");
+            Utils.printFirstNValues(sigmaRawSliced, 4, "sigmaRaw before exp");
 
             //Tensor sigma = torch.exp(FloatTensor(hSliced));
             this.trunxExp = new AutogradFunctions.TruncExp();
-            Utils.printFirstNValues(hSliced, 8, "sigma");
-            Tensor sigma = trunxExp.forward(hSliced);
-            Utils.printFirstNValues(sigma, 8, "sigma");
-            Tensor geometryFeatures = h.slice(-1, 1L, h.size((int)-1), 1L);
+            Tensor sigma = trunxExp.forward(sigmaRawSliced);
+            Utils.printFirstNValues(sigma, 4, "sigma after exp");
+            Tensor geometryFeatures = sigmaOut.slice(-1, 1L, sigmaOut.size((int)-1), 1L);
 
             //Color
 
@@ -71,11 +68,12 @@ namespace InstantNeRF
             directions = encoderDir.forward(directions);
 
 
-            h = torch.cat(new List<Tensor>() { directions, geometryFeatures }, -1);
+            sigmaOut = torch.cat(new List<Tensor>() { directions, geometryFeatures }, -1);
 
             Console.WriteLine("color---------------------------");
-            h = colorNet.forward(h);
-            Tensor color = torch.sigmoid(h);
+            sigmaOut = colorNet.forward(sigmaOut);
+            Tensor color = torch.sigmoid(sigmaOut);
+            Utils.printFirstNValues(color, 4, "color output");
             return (sigma, color);
         }
         public void backward(float gradScale)

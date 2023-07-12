@@ -161,9 +161,9 @@ namespace InstantNeRF
         public (Tensor groundTruth, Tensor predictedRgb, Tensor predictedDepth, Tensor loss) evalStep(Dictionary<string, Tensor> data)
         {
             this.nerfRenderer.mlp.eval();
-            Tensor raysOrigin = data["raysOrigin"].to_type(torch.half);
-            Tensor raysDirection = data["raysDirection"].to_type(torch.half);
-            Tensor groundTruthImages = data["groundTruthImages"].to_type(torch.half);
+            Tensor raysOrigin = data["raysOrigin"].to_type(torch.float32);
+            Tensor raysDirection = data["raysDirection"].to_type(torch.float32);
+            Tensor groundTruthImages = data["groundTruthImages"].to_type(torch.float32);
             long BATCH = groundTruthImages.shape[0];
             long HEIGHT = groundTruthImages.shape[1];
             long WIDTH = groundTruthImages.shape[2];
@@ -324,7 +324,7 @@ namespace InstantNeRF
                 }
                 d.DisposeEverything();
             }
-
+            Console.ReadLine();
             return totalLoss;         
         }
 

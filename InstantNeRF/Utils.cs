@@ -173,6 +173,7 @@ namespace InstantNeRF
                 }
 
             }
+            Console.WriteLine();
         }
         public static void printMean(Tensor t, string name = "Tensor")
         {
@@ -189,6 +190,7 @@ namespace InstantNeRF
                 Console.Write("sum: ");
                 t.sum().print();
             }
+            Console.WriteLine();
         }
     }
     public enum ColorSpace

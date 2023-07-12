@@ -36,7 +36,7 @@ namespace InstantNeRF
             this.aabbTrain = torch.FloatTensor(torch.from_array(new float[] { -bound, -bound, -bound, bound, bound, bound }));
             this.aabbInference = aabbTrain.clone();
             long gridSize3D = Convert.ToInt64(Math.Pow((double)gridSize, 3));
-            this.densityGrid = torch.zeros(new long[] { cascade, gridSize3D }, dtype: torch.half);
+            this.densityGrid = torch.zeros(new long[] { cascade, gridSize3D }, dtype: torch.float32);
             decimal sizeDecimal = cascade * gridSize3D / 8L;
             this.densityBitfield = torch.zeros(new long[] { Convert.ToInt64(Math.Floor(sizeDecimal)) }, dtype: ScalarType.Byte);
             this.stepCounter = torch.zeros(new long[] { 16, 2 }, dtype: ScalarType.Int32);
@@ -222,7 +222,7 @@ namespace InstantNeRF
                                 Tensor[] grid = torch.meshgrid(new List<Tensor>() { x, y, z });
                                 Tensor coords = torch.cat(new List<Tensor>() { grid[0].reshape(-1, 1), grid[1].reshape(-1, 1), grid[2].reshape(-1, 1) }, dim: -1);
                                 Tensor indices = torch.LongTensor(RaymarchUtils.morton3D(coords));
-                                Tensor xyzsWorld = (2 * torch.FloatTensor(coords) / (gridSize - 1) - 1).unsqueeze(0).to_type(torch.half);
+                                Tensor xyzsWorld = (2 * torch.FloatTensor(coords) / (gridSize - 1) - 1).unsqueeze(0);
 
 
                                 //cascading
@@ -230,7 +230,7 @@ namespace InstantNeRF
                                 {
                                     float currentBound = Convert.ToSingle(Math.Min(Math.Pow(2, (float)cas), this.bound));
                                     float halfGridSize = currentBound / this.gridSize;
-                                    Tensor cascadeXyzsWorld = (xyzsWorld * (currentBound - halfGridSize)).to_type(torch.half);
+                                    Tensor cascadeXyzsWorld = (xyzsWorld * (currentBound - halfGridSize));
                                     cascadeXyzsWorld += (torch.rand_like(cascadeXyzsWorld) * 2 - 1) * halfGridSize;
 
                                     long head = 0;
@@ -304,7 +304,7 @@ namespace InstantNeRF
                                 Tensor zz = grid[2].reshape(-1, 1);
                                 Tensor coords = torch.cat(new List<Tensor>() { xx, yy, zz }, dim: -1);
                                 Tensor indices = torch.LongTensor(RaymarchUtils.morton3D(coords));
-                                Tensor xyzs = 2 * torch.FloatTensor(coords).to_type(torch.half) / (gridSize - 1) - 1;
+                                Tensor xyzs = 2 * torch.FloatTensor(coords) / (gridSize - 1) - 1;
 
                                 //cascading
                                 for (int cas = 0; cas < Convert.ToInt32(cascade); cas++)
@@ -336,7 +336,7 @@ namespace InstantNeRF
                         Tensor occupiedCoords = RaymarchUtils.morton3DInvert(occupiedIndices);
                         indices = torch.cat(new Tensor[] { indices, occupiedIndices });
                         coords = torch.cat(new Tensor[] { coords, occupiedCoords });
-                        Tensor xyzs = 2 * torch.FloatTensor(coords).to_type(torch.half) / (gridSize - 1) - 1;
+                        Tensor xyzs = 2 * torch.FloatTensor(coords) / (gridSize - 1) - 1;
                         float currentBound = Convert.ToSingle(Math.Min(Math.Pow(2, cas), this.bound));
                         float halfGridSize = currentBound / this.gridSize;
                         Tensor cascadeXyzs = xyzs * (currentBound - halfGridSize);
@@ -357,7 +357,7 @@ namespace InstantNeRF
                 int totalStep = Math.Min(16, localStep);
                 if (totalStep > 0)
                 {
-                    int stepCounterItem = stepCounter.slice(0, 0, totalStep, 1).select(1, 0).sum().item<int>();
+                    int stepCounterItem = stepCounter.slice(0, 0, (long)totalStep, 1).select(1, 0).sum().item<int>();
                     meanCount = stepCounterItem / totalStep;
                 }
 

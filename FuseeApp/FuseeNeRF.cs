@@ -167,13 +167,6 @@ namespace FuseeApp
                 Trainer trainer = new Trainer("NGP001", renderer, optimizer, criterion, 1, subdirectoryName: "workspace_lego_synthetic");
                 Console.WriteLine("created trainer");
 
-                Tensor t = torch.rand(new long[2] { 3, 3});
-                Tensor tSliced = t.slice(-1, 0,1,1).squeeze(-1);
-                Tensor t2 = t.slice(-1, 1L, t.size((int)-1), 1L);
-
-                t.print();
-                tSliced.print();
-                t2.print();
                 _trainer = trainer;
                 _dataProvider = trainData;
             }

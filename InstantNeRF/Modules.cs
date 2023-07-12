@@ -69,7 +69,7 @@ namespace Modules
 
             this.gradFnc = new AutogradFunctions.ModuleFunction();
 
-            Utils.printMean(param, "param");
+            Utils.printFirstNValues(param, 3, " -- parameters --");
 
             Tensor output = this.gradFnc.ApplyFwd(
                 this.tcnnModule,
@@ -78,6 +78,7 @@ namespace Modules
                 this.lossScale);
             output = output.slice(0L, 0L, batchSize, 1L);
             output = output.slice(1L, 0L, outputDims, 1L);
+            output = FloatTensor(output);
             return output;
         }
         public void backward(float gradScale)
