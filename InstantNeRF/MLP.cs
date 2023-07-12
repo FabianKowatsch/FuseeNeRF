@@ -36,6 +36,8 @@ namespace InstantNeRF
 
         public (Tensor sigma, Tensor color) forward(Tensor positions, Tensor directions)
         {
+            Utils.printFirstNValues(positions, 3, "positions");
+            Utils.printFirstNValues(directions, 3, "directions");
             //Sigma
             positions = (positions + this.bound) / (2 * this.bound);
 

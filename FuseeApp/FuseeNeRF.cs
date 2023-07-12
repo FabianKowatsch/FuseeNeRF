@@ -150,8 +150,8 @@ namespace FuseeApp
                 Console.WriteLine("torch version: " + __version__);
                 Device device = cuda.is_available() ? CUDA : CPU;
 
-                DataProvider trainData = new DataProvider(device, pathToData, "transforms_train", "train", downScale: 2.0f, radiusScale: 1.0f, offset: new float[] { 0.5f, 0.5f, 0.5f }, bound: 1.0f, numRays: 2048, preload: false, datasetType: "synthetic");
-                DataProvider evalData = new DataProvider(device, pathToData, "transforms_val", "val", downScale: 2.0f, radiusScale: 1.0f, offset: new float[] { 0.5f, 0.5f, 0.5f }, bound: 1.0f, numRays: 2048, preload: false, datasetType: "synthetic");
+                DataProvider trainData = new DataProvider(device, pathToData, "transforms_train", "train", downScale: 2.0f, radiusScale: 1.0f, offset: new float[] { 0f, 0f, 0f }, bound: 1.0f, numRays: 2048, preload: false, datasetType: "synthetic");
+                DataProvider evalData = new DataProvider(device, pathToData, "transforms_val", "val", downScale: 2.0f, radiusScale: 1.0f, offset: new float[] { 0f, 0f, 0f }, bound: 1.0f, numRays: 2048, preload: false, datasetType: "synthetic");
                 Console.WriteLine("created datasets");
 
 

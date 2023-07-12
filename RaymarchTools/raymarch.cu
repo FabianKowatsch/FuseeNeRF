@@ -38,6 +38,7 @@ inline __device__ int mip_from_dt(const float dt, const float H, const float max
     return fminf(max_cascade - 1, fmaxf(0, exponent));
 }
 
+
 inline __host__ __device__ uint32_t __expand_bits(uint32_t v)
 {
     v = (v * 0x00010001u) & 0xFF0000FFu;
