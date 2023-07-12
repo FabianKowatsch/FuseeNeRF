@@ -1,23 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using TorchSharp;
+﻿using TorchSharp;
 using static TorchSharp.torch;
 using Modules;
-using static InstantNeRF.AutogradFunctions;
 
 namespace InstantNeRF
 {
     public class MLP : nn.Module
     {
-        private float bound;
-        private Module positionalEnc;
+        private Module encoderPos;
         private Module sigmaNet;
         private Module colorNet;
-        private Module directionalEnc;
-        public MLP(float bound = 1f) : base("MLP")
+        private Module encoderDir;
+        private float bound;
+        private AutogradFunctions.TruncExp trunxExp;
+        public MLP(string name, float bound) : base(name)
         {
             this.bound = bound;
             uint featureDims = 15u;
@@ -26,89 +21,102 @@ namespace InstantNeRF
             uint nLayersColor = 2u;
             float perLevelScale = Convert.ToSingle(Math.Pow(2, Math.Log2(2048 * this.bound / 16) / (16 - 1)));
 
-            string encodingPosCfg = "{\"otype\": \"HashGrid\", \"n_levels\": 16, \"n_features_per_level\": 2, \"log2_hashmap_size\": 19, \"base_resolution\": 16, \"per_level_scale\": " + perLevelScale.ToString(System.Globalization.CultureInfo.InvariantCulture) + "}";
-            string networkSigmaCfg = "{\"otype\": \"FullyFusedMLP\", \"n_neurons\": " + neuronsPerLayer + ", \"n_hidden_layers\": " + nLayersSigma + ", \"activation\": \"ReLU\", \"output_activation\": \"None\"}";
+            string encodingPosCfg = "{\"otype\": \"HashGrid\", \"n_levels\": 16, \"n_features_per_level\": 2, \"log2_hashmap_size\": 19, \"base_resolution\": 16, \"per_level_scale\": " + perLevelScale.ToString(System.Globalization.CultureInfo.InvariantCulture) +"}";
+            string networkSigmaCfg = "{\"otype\": \"FullyFusedMLP\", \"n_neurons\": " + neuronsPerLayer +", \"n_hidden_layers\": " + nLayersSigma +", \"activation\": \"ReLU\", \"output_activation\": \"None\"}";
             string encodingDirCfg = "{\"n_dims_to_encode\": 3, \"otype\": \"SphericalHarmonics\", \"degree\": 4}";
-            string networkColorCfg = "{\"otype\": \"FullyFusedMLP\", \"n_neurons\": " + neuronsPerLayer + ", \"n_hidden_layers\": " + nLayersColor + ", \"activation\": \"ReLU\", \"output_activation\": \"None\"}";
+            string networkColorCfg = "{\"otype\": \"FullyFusedMLP\", \"n_neurons\": " + neuronsPerLayer +", \"n_hidden_layers\": " + nLayersColor +", \"activation\": \"ReLU\", \"output_activation\": \"None\"}";
+            
 
-
-            positionalEnc = ModuleFactory.Encoding("PosEncoding", 3, encodingPosCfg, 0);
+            encoderPos = ModuleFactory.Encoding("PosEncoding", 3, encodingPosCfg, 0);
             sigmaNet = ModuleFactory.Network("SigmaNet", 32, featureDims + 1, networkSigmaCfg);
-            directionalEnc = ModuleFactory.Encoding("DirEncoding", 3, encodingDirCfg, 0);
-            uint colorInputDims = directionalEnc.outputDims + featureDims;
+            encoderDir = ModuleFactory.Encoding("DirEncoding", 3, encodingDirCfg, 0);
+            uint colorInputDims = encoderDir.outputDims + featureDims;
             colorNet = ModuleFactory.Network("ColorNet", colorInputDims, 3, networkColorCfg);
         }
 
-        public Dictionary<string, Tensor> forward(Dictionary<string, Tensor> data)
+        public (Tensor sigma, Tensor color) forward(Tensor positions, Tensor directions)
         {
-            long[] shape = data["positions"].shape;
-            long[] unflattenedShape = shape.Take(shape.Length -1).ToArray();
-            Tensor outputsFlat = this.runMLP(data["positions"], data["directions"]);
+            //Sigma
+            positions = (positions + this.bound) / (2 * this.bound);
 
-            data.Add("raw", outputsFlat.reshape(unflattenedShape));
-            return data;
+
+            Console.WriteLine("posEnc---------------------------");
+            positions = encoderPos.forward(positions);
+
+
+            Console.WriteLine("sigma---------------------------");
+            Tensor h = sigmaNet.forward(positions);
+
+
+            //long lastDim = h.Dimensions - 1L;
+
+            Utils.printFirstNValues(h, 4, "h");
+
+            Tensor hSliced = h.slice(-1, 0L, 1L, 1L).squeeze(-1);
+
+            Utils.printFirstNValues(hSliced, 4, "h");
+
+            //Tensor sigma = torch.exp(FloatTensor(hSliced));
+            this.trunxExp = new AutogradFunctions.TruncExp();
+            Utils.printFirstNValues(hSliced, 8, "sigma");
+            Tensor sigma = trunxExp.forward(hSliced);
+            Utils.printFirstNValues(sigma, 8, "sigma");
+            Tensor geometryFeatures = h.slice(-1, 1L, h.size((int)-1), 1L);
+
+            //Color
+
+            //Spherical Harmonics requires the input to be in the range of [0,1]
+            directions = (directions + 1) / 2;
+            Console.WriteLine("dirEnc---------------------------");
+            directions = encoderDir.forward(directions);
+
+
+            h = torch.cat(new List<Tensor>() { directions, geometryFeatures }, -1);
+
+            Console.WriteLine("color---------------------------");
+            h = colorNet.forward(h);
+            Tensor color = torch.sigmoid(h);
+            return (sigma, color);
         }
-
-        public Tensor runMLP(Tensor positions, Tensor directions)
-        {
-            Utils.printDims(positions, "positions");
-            Utils.printDims(directions, "directions");
-            // Input Encoding
-            Console.WriteLine("-:-:- before encoding pos -:-:-");
-            Tensor positionsFlat = torch.reshape(positions, -1, positions.size(-1)).detach();
-            Tensor positionsEncoded = this.positionalEnc.forward(positionsFlat);
-
-            if (positions.Dimensions > directions.Dimensions)
-                directions = directions.slice(0, 0, directions.size(0), 1).expand(positions.shape);
-
-            Tensor directionsFlat = torch.reshape(directions, -1, directions.size(-1)).detach();
-
-            Console.WriteLine("-:-:- before encoding dir -:-:-");
-
-            Tensor directionsEncoded = this.directionalEnc.forward(directionsFlat);
-
-            // Networks
-            Console.WriteLine("-:-:- before sigma -:-:-");
-            Tensor densityOut = this.sigmaNet.forward(positionsEncoded);
-            Tensor sigma = densityOut.slice(-1, 0, 1, 1).squeeze(-1);
-            Tensor geometryFeatures = densityOut.slice(-1, 1, densityOut.size(-1), 1);
-
-            Tensor colorNetIn = torch.cat(new List<Tensor>() { geometryFeatures, directionsEncoded }, -1);
-
-            Console.WriteLine("-:-:- before color -:-:-");
-            Tensor colorOutput = this.colorNet.forward(colorNetIn);
-
-            return torch.cat(new List<Tensor>() { colorOutput, sigma });
-        }
-
-        public Tensor density(Tensor positionsFlat)
-        {
-            Utils.printDims(positionsFlat, "positionsFlat");
-            Tensor positionsEncoded = this.positionalEnc.forward(positionsFlat);
-            Tensor densityOutput = this.sigmaNet.forward(positionsEncoded);
-            Tensor density = densityOutput.slice(1, 0, 1, 1).to(torch.float32);
-            return density;
-        }
-
         public void backward(float gradScale)
         {
+            Console.WriteLine("==>color--bwd");
             colorNet.backward(gradScale);
+            Console.WriteLine("==>dirEnc--bwd");
+            encoderDir.backward(gradScale);
 
-            directionalEnc.backward(gradScale);
+            if(this.trunxExp != null)
+            {
+                trunxExp.backward();
+            }
 
+            Console.WriteLine("==>sigma--bwd");
             sigmaNet.backward(gradScale);
-
-            positionalEnc.backward(gradScale);
+            Console.WriteLine("==>posEnc--bwd");
+            encoderPos.backward(gradScale);
         }
-
+        public (Tensor sigmas, Tensor geometryFeatures) density(Tensor input)
+        {
+            input = (input + bound) / (2 * bound);
+            Console.WriteLine("posEnc|Dens---------------------------");
+            input = encoderPos.forward(input);
+            Console.WriteLine("sigma|Dens---------------------------");
+            Tensor h = sigmaNet.forward(input);
+            long lastDim = h.dim() - 1L;
+            Tensor hSliced = h.slice(lastDim, 0L, 1L, 1L).squeeze(lastDim);
+            Tensor sigma = torch.exp(hSliced);
+            Tensor geometryFeatures = h.slice(lastDim, 1L, lastDim, 1L);
+            return (sigma, geometryFeatures);
+        }
         public List<TorchSharp.Modules.Parameter> getParams()
         {
             List<TorchSharp.Modules.Parameter> paramsList = new List<TorchSharp.Modules.Parameter>();
-            paramsList.AddRange(positionalEnc.parameters());
+            paramsList.AddRange(encoderPos.parameters());
             paramsList.AddRange(sigmaNet.parameters());
             //paramsList.AddRange(encoderDir.parameters());
             paramsList.AddRange(colorNet.parameters());
             return paramsList;
         }
+
     }
 }

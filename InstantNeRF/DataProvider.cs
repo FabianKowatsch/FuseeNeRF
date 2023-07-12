@@ -4,7 +4,6 @@ using System.Text.Json;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.PixelFormats;
-using SkiaSharp;
 
 namespace InstantNeRF
 {
@@ -16,22 +15,21 @@ namespace InstantNeRF
         private NerfMode mode;
         private float downscale;
         private float radiusScale;
-        private float offset;
+        private float[] offset;
         private float bound;
-        public int numRays;
-        private int currentIndex;
+        private int numRays;
+        private int height;
+        private int width;
         private string dataPath;
         private JsonDocument transforms;
-        public int width;
-        public int height;
-        public Tensor focals;
         public Tensor poses;
         public Tensor images;
         public Tensor intrinsics;
-        public Tensor raysAndRGBS;
+        public Tensor errorMap;
+        public float radius;
         public long batchSize;
 
-        public DataProvider(Device device, string dataPath, string jsonName, string mode, float downScale, float radiusScale, float offset, float bound, int numRays, bool preload, string datasetType)
+        public DataProvider(Device device, string dataPath, string jsonName, string mode, float downScale, float radiusScale, float[] offset, float bound, int numRays, bool preload, string datasetType)
         {
             this.device = device;
             this.mode = Utils.modeFromString(mode);
@@ -65,49 +63,36 @@ namespace InstantNeRF
 
                 (this.poses, this.images) = extractImageDataFromJSON(false);
 
+                if (this.mode == NerfMode.TRAIN)
+                    this.errorMap = torch.ones(this.images.shape[0], 128 * 128, dtype: torch.float32);
+                else this.errorMap = torch.empty(0);
+
+                this.radius = this.poses.slice(2, 0, 3, 1).select(2, 3).norm(-1).mean(new long[] { 0 }).item<float>();
+
             }
             else if (datasetType == "synthetic")
             {
                 (this.poses, this.images) = extractImageDataFromJSON(true);
+                if (this.mode == NerfMode.TRAIN)
+                    this.errorMap = torch.ones(this.images.shape[0], 128 * 128, dtype: torch.float32);
+                else this.errorMap = torch.empty(0);
+                this.radius = this.poses.slice(1, 0, 3, 1).select(2, 3).norm(-1).mean(new long[] { 0 }).item<float>();
             }
             else
             {
                 throw new Exception("unknown dataset type");
             }
-
-            float[] rawIntrinsics = extractIntrinsics();
-
-            float[,] intrinsicsArray = new float[,] { 
-                { rawIntrinsics[0], 0f, rawIntrinsics[2] },
-                {0f, rawIntrinsics[1], rawIntrinsics[3] }, 
-                {0f, 0f, 1f }
-            };
-            this.intrinsics = torch.from_array(intrinsicsArray);
-            this.focals = torch.from_array(new float[] { rawIntrinsics[0], rawIntrinsics[1] });
+            this.intrinsics = extractIntrinsics();
 
             if (preload)
             {
                 this.poses = this.poses.to(this.device);
                 this.images = this.images.to(this.device);
+                this.errorMap = this.errorMap.to(this.device);
             }
             this.batchSize = images.size(0);
-
-            Tensor rays = Utils.loadRays(this.poses, this.images, this.intrinsics, width, height);
-
-
-            if (this.mode == NerfMode.TRAIN)
-            {
-                Tensor indices = torch.randperm(rays.size(0));
-                Tensor shuffledRays = rays[indices];
-                this.raysAndRGBS = shuffledRays;
-            }
-            else
-            {
-                this.raysAndRGBS = Utils.loadRays(this.poses, this.images, this.intrinsics, width, height);
-            }
-            this.currentIndex = 0;
         }
-        private float[] extractIntrinsics()
+        private Tensor extractIntrinsics()
         {
             float focusX;
             if (transforms.RootElement.TryGetProperty("fl_x", out JsonElement focusXElement))
@@ -135,7 +120,7 @@ namespace InstantNeRF
             if (transforms.RootElement.TryGetProperty("cy", out JsonElement centerYElement))
                 centerY = centerYElement.GetSingle() / downscale;
             else centerY = this.height / 2;
-            return new float[4] { focusX, focusY, centerX, centerY };
+            return torch.from_array(new float[4] { focusX, focusY, centerX, centerY });
         }
 
         private (Tensor poses, Tensor images) extractImageDataFromJSON(bool useSynthetic)
@@ -171,7 +156,7 @@ namespace InstantNeRF
                         filePath = pathElement.GetString() ?? throw new Exception("wrong path");
                     }
                     Tensor image = useSynthetic ? getImageDataFromPNG(Path.Combine(dataPath, filePath + ".png")) : getImageDataFromJPG(Path.Combine(dataPath, filePath + ".jpg"));
-                    Tensor transform = torch.from_array(mtx);
+                    Tensor transform = torch.from_array(Utils.arrayToNGPMatrix(mtx, this.radiusScale, this.offset));
                     if (!useSynthetic)
                     {
                         switch (mode)
@@ -209,7 +194,6 @@ namespace InstantNeRF
                 }
             }
             Tensor poses = torch.stack(posesList);
-            poses = Utils.poseToNGP(poses, new float[] { 1, -1, 1 }, this.radiusScale, this.offset);
             Tensor images = torch.stack(imageList);
             return (poses, images);
         }
@@ -229,7 +213,7 @@ namespace InstantNeRF
                     }));
                 }
 
-                float[,,] floatArray = new float[width, height, 4];
+                float[,,] floatArray = new float[width, height, 3];
 
                 for (int y = 0; y < height; y++)
                 {
@@ -240,7 +224,6 @@ namespace InstantNeRF
                         floatArray[x, y, 0] = pixel.R / 255f;
                         floatArray[x, y, 1] = pixel.G / 255f;
                         floatArray[x, y, 2] = pixel.B / 255f;
-                        floatArray[x, y, 3] = 1f;
                     }
                 }
                 return torch.from_array(floatArray);
@@ -261,7 +244,7 @@ namespace InstantNeRF
                     }));
                 }
 
-                float[,,] floatArray = new float[width, height, 4];
+                float[,,] floatArray = new float[width, height, 3];
 
                 for (int y = 0; y < height; y++)
                 {
@@ -272,47 +255,38 @@ namespace InstantNeRF
                         floatArray[x, y, 0] = pixel.R / 255f;
                         floatArray[x, y, 1] = pixel.G / 255f;
                         floatArray[x, y, 2] = pixel.B / 255f;
-                        floatArray[x, y, 2] = pixel.A / 255f;
                     }
                 }
                 return torch.from_array(floatArray);
             }
         }
-
-        public Dictionary<string, Tensor> getTrainData() 
+        public Dictionary<string, Tensor> collate(int index)
         {
             Dictionary<string, Tensor> results = new Dictionary<string, Tensor>();
+            Tensor poses = this.poses[index].to(device);
+            Tensor errorMap = this.errorMap[index];
 
-            if(this.currentIndex + numRays > this.raysAndRGBS.size(0))
-                this.currentIndex = 0;
+            Dictionary<string, Tensor> raysDict = Utils.getRays(poses, this.intrinsics, this.height, this.width, errorMap, this.numRays);
 
-            int startingIndex = this.currentIndex;
-            int endIndex = this.currentIndex + numRays;
-
-            Tensor batch = this.raysAndRGBS.slice(0, startingIndex, endIndex, 1);
-
-            results.Add("raysOrigin", batch.slice(1, 0, 3, 1));
-            results.Add("raysDirection", batch.slice(1, 3, 6, 1));
-
-            //Color perturbation while training
-
-            Tensor gtColors = batch.slice(1, 6, 9, 1);
-            Tensor alpha = batch.slice(1, 9, 10, 1);
-            Tensor bgColor = torch.rand(gtColors.shape);
-
-            gtColors = gtColors * alpha + bgColor * (1-alpha);
-
-            results.Add("gt", gtColors.to(float32));
-            results.Add("alpha", alpha);
-            results.Add("bgColor", bgColor.to(float32));
-            results.Add("imageIndices", batch.slice(1, 10, batch.size(1), 1));
-
-
-
-            this.currentIndex += numRays;
+            Tensor images = this.images[index].to(device);
+            if (this.mode == NerfMode.TRAIN)
+            {
+                images = images.unsqueeze(0);
+                long colorDims = images.shape[images.ndim - 1];
+                images = torch.gather(images.view(1, -1, colorDims), 1, torch.stack(new List<Tensor>() { raysDict["indices"], raysDict["indices"], raysDict["indices"] }, -1));
+            }
+            results["groundTruthImages"] = images;
+            if (this.errorMap.numel() != 0)
+            {
+                results["index"] = torch.tensor(index);
+                results["indicesCoarse"] = raysDict["indicesCoarse"];
+            }
+            results["H"] = height;
+            results["W"] = width;
+            results["raysOrigin"] = raysDict["raysOrigin"];
+            results["raysDirection"] = raysDict["raysDirection"];
 
             return results;
-
         }
 
     }

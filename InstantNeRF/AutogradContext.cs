@@ -49,29 +49,6 @@ namespace InstantNeRF
 
     }
 
-    class VolumeRenderingContext
-    {
-        public VolumeRenderingContext(int rgbActivation, int densityActivation, float aabbMin, float aabbMax)
-        {
-            this.aabbMin = aabbMin;
-            this.aabbMax = aabbMax;
-            this.rgbActivation = rgbActivation;
-            this.densityActivation = densityActivation;
-        }
-        public List<Tensor> savedTensors = new List<Tensor>();
-        public int rgbActivation;
-        public int densityActivation;
-        public float aabbMin;
-        public float aabbMax;
-        public void saveForBackward(List<Tensor> tensors)
-        {
-            tensors.ForEach(t =>
-            {
-                savedTensors.Add(t);
-            });
-        }
-    }
-
     class BasicContext
     {
         public BasicContext() { }

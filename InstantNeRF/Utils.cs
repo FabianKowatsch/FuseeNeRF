@@ -1,8 +1,6 @@
 ﻿using ICSharpCode.SharpZipLib.Zip;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using TorchSharp;
 using TorchSharp.Modules;
 using static Tensorboard.TensorShapeProto.Types;
@@ -36,37 +34,19 @@ namespace InstantNeRF
                     throw new Exception("Wrong argument");
             }
         }
-        public static Tensor poseToNGP(Tensor poses, float[] correctPose, float scale, float offset)
+        public static float[,] arrayToNGPMatrix(float[,] pose, float scale, float[] offset)
         {
-            Tensor corrected = torch.from_array(correctPose);
-
-
-            List<Tensor> posesList = new List<Tensor>();
-
-            for (int i = 0; i < poses.shape[0]; i++)
+            float[,] output = new float[,]
             {
-                Tensor pose = matrixToNGP(poses.select(0, i), corrected, scale, offset);
-                posesList.Add(pose);
-            }
-            Tensor result = torch.stack(posesList).to(float32);
-            return result.permute(0, 2, 1);
+                {pose[1,0], -pose[1,1], -pose[1,2], pose[1,3] * scale + offset[0]},
+                 {pose[2,0], -pose[2,1], -pose[2,2], pose[2,3] * scale + offset[1]},
+                  {pose[0,0], -pose[0,1], -pose[0,2], pose[0,3] * scale + offset[2]},
+                   {0, 0, 0, 1},
+
+            };
+
+            return output;
         }
-        public static Tensor matrixToNGP(Tensor matrix, Tensor correctPose, float scale, float offset) 
-        {
-            for (int i = 0; i < matrix.shape[0]; i++)
-            {
-                matrix[i, 0] *= correctPose[0];
-                matrix[i, 1] *= correctPose[1];
-                matrix[i, 2] *= correctPose[2];
-                matrix[i, 3] = matrix[i, 3] * scale + offset;
-            }
-
-            Tensor indices = torch.LongTensor(torch.from_array(new long[] {1,2,0}));
-            matrix = matrix[indices];
-
-            return matrix;
-        }
-
         public static float[,] fuseeMatrixToNGPMatrix(float[] pose, float scale, float[] offset)
         {
             float[,] output = new float[,]
@@ -79,46 +59,6 @@ namespace InstantNeRF
             };
 
             return output;
-        }
-
-        public static Tensor loadRays(Tensor poses, Tensor images, Tensor K, int width, int height)
-        {
-            Tensor result;
-            List<Tensor> raysList = new List<Tensor>();
-
-            for (int i = 0; i < poses.shape[0]; i++)
-            {
-                (Tensor origins, Tensor dirs) = getRaysFromPose(width, height, K, poses[i]);
-                Tensor raysResult = torch.concatenate(new List<Tensor>() {origins, dirs }, 2);
-                raysList.Add(raysResult);
-            }
-            Tensor rays = torch.stack(raysList, 0);
-            result = torch.concatenate(new List<Tensor>() {rays, images}, 3); // [N, H, W, ro[3] + rd[3] + rgba[4]]
-
-            Tensor imageIndices = torch.arange(images.shape[0]).reshape(-1,1,1,1); // [N,1,1,1]
-
-            imageIndices = torch.broadcast_to(imageIndices, result.shape[0], result.shape[1], result.shape[2], 1 ); // [N, H, W, 1]
-
-            result = torch.concatenate(new List<Tensor>() { result, imageIndices }, 3); // [N, H, W, 10+1]
-
-            result = result.reshape(-1, 11).to(float32); // [N*H*W, 10+1]
-
-            return result;
-        }
-        public static (Tensor rayOrigins, Tensor rayDirections) getRaysFromPose(int width, int height, Tensor K, Tensor camToWorld)
-        {
-            camToWorld = camToWorld.transpose(1, 0);
-            Tensor[] ij = torch.meshgrid(new List<Tensor> { torch.arange(width), torch.arange(height) }, indexing: "xy");
-            Tensor i = ij[0] + 0.5;
-            Tensor j = ij[1] + 0.5;
-            Tensor directions = torch.stack(new List<Tensor> { (i - K[0][2]) / K[0][0], (j - K[1][2]) / K[1][1], torch.ones_like(i) }, -1);
-            Tensor camToWorldSliced = camToWorld.slice(0, 0, 3, 1).slice(1, 0, 3, 1);
-            Tensor rayDirections = torch.matmul(camToWorldSliced, directions.unsqueeze(3)).select(-1, 0);
-            rayDirections = rayDirections / torch.norm(rayDirections, -1, true);
-
-            Tensor rayOrigins = torch.broadcast_to(camToWorld.slice(0, 0, 3, 1).select(-1, camToWorld.size(-1) -1), rayDirections.shape);
-
-            return (rayOrigins, rayDirections);
         }
 
         public static Dictionary<string, Tensor> getRays(Tensor poses, Tensor intrinsics, int height, int width, Tensor errorMap, int n = -1, int patchSize = 1)
@@ -249,16 +189,6 @@ namespace InstantNeRF
                 Console.Write("sum: ");
                 t.sum().print();
             }
-        }
-
-        public static void printDims(Tensor t, string name = "Tensor")
-        {
-            Console.WriteLine(name + ": type: " + t.dtype + " device: " + t.device + " numel: " + t.numel() + " contigous: " + t.is_contiguous());
-            for (int i = 0; i < t.shape.Length; i++)
-            {
-                Console.WriteLine(name + " : " + i + " | " + t.shape[i]);
-            }
-            Console.WriteLine(" ");
         }
     }
     public enum ColorSpace

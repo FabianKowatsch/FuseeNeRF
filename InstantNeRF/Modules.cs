@@ -30,6 +30,7 @@ namespace Modules
             {
                 this.outputDims = tcnnModule.nOutputDims();
             }
+            Console.WriteLine("----" + name);
             if (tcnnModule.nParams() > 0)
             {
                 Tensor initialParams = tcnnModule.initialParams(this.seed).to_type(this.dtype);
@@ -67,6 +68,8 @@ namespace Modules
             Tensor xPadded = (batchSize == paddedBatchSize) ? x : torch.nn.functional.pad(x, new long[4] { 0L, 0L, 0L, paddedBatchSize - batchSize });
 
             this.gradFnc = new AutogradFunctions.ModuleFunction();
+
+            Utils.printMean(param, "param");
 
             Tensor output = this.gradFnc.ApplyFwd(
                 this.tcnnModule,
