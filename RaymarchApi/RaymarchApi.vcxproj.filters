@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="csrc">
+      <UniqueIdentifier>{5284d15d-76c8-483a-ab50-be90dbce5a89}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header">
+      <UniqueIdentifier>{a45c2664-7a14-4882-a0be-60bd88e5ff73}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="calc_rgb.cu">
+      <Filter>csrc</Filter>
+    </CudaCompile>
+    <CudaCompile Include="compacted_coord.cu">
+      <Filter>csrc</Filter>
+    </CudaCompile>
+    <CudaCompile Include="ema_grid_samples_nerf.cu">
+      <Filter>csrc</Filter>
+    </CudaCompile>
+    <CudaCompile Include="generate_grid_samples_nerf_nonuniform.cu">
+      <Filter>csrc</Filter>
+    </CudaCompile>
+    <CudaCompile Include="mark_untrained_density_grid.cu">
+      <Filter>csrc</Filter>
+    </CudaCompile>
+    <CudaCompile Include="ray_sampler.cu">
+      <Filter>csrc</Filter>
+    </CudaCompile>
+    <CudaCompile Include="splat_grid_samples_nerf_max_nearest_neighbor.cu">
+      <Filter>csrc</Filter>
+    </CudaCompile>
+    <CudaCompile Include="update_bitfield.cu">
+      <Filter>csrc</Filter>
+    </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="common.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="ray_sampler_header.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="raymarch_shared.h">
+      <Filter>header</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="api.cpp" />
+  </ItemGroup>
+</Project>
