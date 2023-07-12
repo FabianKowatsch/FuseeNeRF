@@ -36,7 +36,7 @@ namespace InstantNeRF
                     throw new Exception("Wrong argument");
             }
         }
-        public static Tensor poseToNGP(Tensor poses, float[] correctPose, float scale, float offset)
+        public static Tensor posesToNGP(Tensor poses, float[] correctPose, float scale, float offset)
         {
             Tensor corrected = torch.from_array(correctPose);
 

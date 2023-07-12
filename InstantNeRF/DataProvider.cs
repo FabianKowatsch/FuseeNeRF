@@ -103,7 +103,7 @@ namespace InstantNeRF
             }
             else
             {
-                this.raysAndRGBS = Utils.loadRays(this.poses, this.images, this.intrinsics, width, height);
+                this.raysAndRGBS = rays;
             }
             this.currentIndex = 0;
         }
@@ -209,7 +209,7 @@ namespace InstantNeRF
                 }
             }
             Tensor poses = torch.stack(posesList);
-            poses = Utils.poseToNGP(poses, new float[] { 1, -1, 1 }, this.radiusScale, this.offset);
+            poses = Utils.posesToNGP(poses, new float[] { 1, -1, 1 }, this.radiusScale, this.offset);
             Tensor images = torch.stack(imageList);
             return (poses, images);
         }
@@ -289,8 +289,9 @@ namespace InstantNeRF
             int startingIndex = this.currentIndex;
             int endIndex = this.currentIndex + numRays;
 
+            Utils.printDims(raysAndRGBS, "totalData");
             Tensor batch = this.raysAndRGBS.slice(0, startingIndex, endIndex, 1);
-
+            Utils.printDims(batch, "batch");
             results.Add("raysOrigin", batch.slice(1, 0, 3, 1));
             results.Add("raysDirection", batch.slice(1, 3, 6, 1));
 
