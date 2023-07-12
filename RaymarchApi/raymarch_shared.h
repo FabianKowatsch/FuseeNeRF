@@ -19,6 +19,7 @@
 #include <Eigen/Dense>
 #include "pcg32.h"
 
+
 #define TCNN_HOST_DEVICE __host__ __device__
 #define NGP_HOST_DEVICE __host__ __device__
 using namespace Eigen;
