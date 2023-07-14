@@ -16,7 +16,7 @@ namespace Modules
         private TorchSharp.Modules.Parameter param;
         public uint outputDims;
         private AutogradFunctions.ModuleFunction? gradFnc;
-        public Module(string name, ModuleWrapper nativeTcnnModule, uint? outputDims, ulong seed = 1234) : base(name)
+        public Module(string name, ModuleWrapper nativeTcnnModule, uint? outputDims, ulong seed = 1337) : base(name)
         {
             this.tcnnModule = nativeTcnnModule;
             this.seed = seed;
