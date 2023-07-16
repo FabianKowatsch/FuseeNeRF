@@ -172,6 +172,8 @@ namespace InstantNeRF
                     }
                     Tensor image = useSynthetic ? getImageDataFromPNG(Path.Combine(dataPath, filePath + ".png")) : getImageDataFromJPG(Path.Combine(dataPath, filePath + ".jpg"));
                     Tensor transform = torch.from_array(mtx);
+                    Utils.printDims(transform, "transform " + counter + " : ");
+                    transform.print();
                     if (!useSynthetic)
                     {
                         switch (mode)
