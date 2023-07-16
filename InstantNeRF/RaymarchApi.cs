@@ -135,7 +135,8 @@ namespace InstantNeRF
             Tensor rayIndices = torch.zeros(new long[] { nRaysPerBatch, 1 }, torch.int32, device);
             Tensor rayNumsteps = torch.zeros(new long[] { nRaysPerBatch, 2}, torch.int32, device);
             Tensor rayCounter = torch.zeros(new long[] { 2 }, torch.int32, device);
-
+            raysOrigin = raysOrigin.to(device); 
+            raysDirection = raysDirection.to(device);
             Utils.printFirstNValues(coordsOut, 4, "coordsOut before ray");
             Utils.printDims(raysDirection, "rayDir");
             raysDirection[100].print();

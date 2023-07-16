@@ -53,12 +53,12 @@ __global__ void rays_sampler_cuda(
     // first pass to compute an accurate number of steps
 
     uint32_t j = 0;
-
     float t = startt;
     Vector3f pos;
-
+ 
     while (aabb.contains(pos = ray_o + t * ray_d) && j < NERF_STEPS())
     {
+
         float dt = calc_dt(t, cone_angle);
         uint32_t mip = mip_from_dt(dt, pos);
         if (density_grid_occupied_at(pos, density_grid, mip))
@@ -72,7 +72,8 @@ __global__ void rays_sampler_cuda(
             t = advance_to_next_voxel(t, cone_angle, pos, ray_d, idir, res);
         }
     }
-    /*
+
+
     uint32_t numsteps = j;
     uint32_t base = atomicAdd(numsteps_counter, numsteps);
 
@@ -91,11 +92,15 @@ __global__ void rays_sampler_cuda(
     // TODO:
     numsteps_out[2 * i + 0] = numsteps;
     numsteps_out[2 * i + 1] = base;
+
+    //printf(" idx: %d , step: %d \n", ray_idx, base);
+
     if (j == 0)
     {
         ray_indices_out[i] = -1;
         return;
     }
+    /*
     Vector3f warped_dir = warp_direction(ray_d);
     t = startt;
     j = 0;
@@ -138,45 +143,48 @@ void rays_sampler_api(
 
     cudaStream_t stream = 0;
 
-    uint32_t test = 0;
+    // input
+    float* rays_o_pointer = (float*)rays_o.data_ptr();
+    float* rays_d_pointer = (float*)rays_d.data_ptr();
+    Vector3f* rays_o_p = (Vector3f*)rays_o_pointer;
+    Vector3f* rays_d_p = (Vector3f*)rays_d_pointer;
+    Eigen::Matrix<float, 3, 4>* transforms_p = (Eigen::Matrix<float, 3, 4>*)xforms.data_ptr();
+    TrainingImageMetadata* metadata_p = (TrainingImageMetadata*)metadata.data_ptr();
 
-    // remember set to zero
-    // int coords_n = (coords_out.sizes()[0]) * (coords_out.sizes()[1]);
-    // cudaMemsetAsync(coords_out_p, 0, sizeof(float)*coords_n, stream);
+    uint8_t* density_grid_bitfield_p = (uint8_t*)density_grid_bitfield.data_ptr();
+    uint32_t* imgs_id_p = (uint32_t*)imgs_id.data_ptr();
+
+    // output
+
+    uint32_t* rays_index_p = (uint32_t*)rays_index.data_ptr();
+    uint32_t* rays_numsteps_p = (uint32_t*)rays_numsteps.data_ptr();
+    uint32_t* ray_numstep_counter_p = (uint32_t*)ray_numstep_counter.data_ptr();
+    NerfCoordinate* coords_out_p = (NerfCoordinate*)coords_out.data_ptr();
+
 
     const unsigned int num_elements = coords_out.sizes()[0];
     const uint32_t n_rays = rays_o.sizes()[0];
     BoundingBox m_aabb = BoundingBox(Eigen::Vector3f::Constant(aabb0), Eigen::Vector3f::Constant(aabb1));
 
+    std::cout << "rays_d device: " << rays_d.device() << std::endl;
+    std::cout << "rays_o device: " << rays_o.device() << std::endl;
+    std::cout << "bitfield device: " << density_grid_bitfield.device() << std::endl;
+    std::cout << "metadata device: " << metadata.device() << std::endl;
+    std::cout << "imgidx device: " << imgs_id.device() << std::endl;
+    std::cout << "transforms device: " << xforms.device() << std::endl;
+
+
     linear_kernel(rays_sampler_cuda, 0, stream,
-        n_rays, m_aabb, num_elements,
-        (Vector3f*)rays_o.data_ptr(),
-        (Vector3f*)rays_d.data_ptr(),
-        (uint8_t*)density_grid_bitfield.data_ptr(),
-        cone_angle_constant,
-        (TrainingImageMetadata*)metadata.data_ptr(),
-        (uint32_t*)imgs_id.data_ptr(),
-        (uint32_t*)ray_numstep_counter.data_ptr(),
-        ((uint32_t*)ray_numstep_counter.data_ptr()) + 1,
-        (uint32_t*)rays_index.data_ptr(),
-        (uint32_t*)rays_numsteps.data_ptr(),
-        PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_out.data_ptr(), 1, 0, 0),
-        (Eigen::Matrix<float, 3, 4>*)xforms.data_ptr(),
-        near_distance,
-        rng);
+        n_rays, m_aabb, num_elements, (Vector3f*)rays_o_p, (Vector3f*)rays_d_p,
+        (uint8_t*)density_grid_bitfield_p, cone_angle_constant,
+        metadata_p, (uint32_t*)imgs_id_p, (uint32_t*)ray_numstep_counter_p,
+        ((uint32_t*)ray_numstep_counter_p) + 1,
+        (uint32_t*)rays_index_p,
+        (uint32_t*)rays_numsteps_p,
+        PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_out_p, 1, 0, 0),
+        transforms_p, near_distance, rng);
 
     rng.advance();
     cudaDeviceSynchronize();
 
-
-    ray_numstep_counter.print();
-    try
-    {
-        int value = ray_numstep_counter[1].item<int>();
-        std::cout << "Value from cpp: " << value << std::endl;
-    }
-    catch (const std::exception& e)
-    {
-        std::cout << e.what() << std::endl;
-    }
 }
