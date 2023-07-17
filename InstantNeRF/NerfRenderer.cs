@@ -55,7 +55,7 @@ namespace InstantNeRF
         public (Tensor weightsSum, Tensor depth, Tensor image) runNerfInference(
             Tensor raysOrigin,
             Tensor raysDirection,
-            float gammaGrad = 0f,
+            float dtGamma = 0f,
             uint maxSteps = 1024,
             double tThresshhold = 1e-4
             )
@@ -107,7 +107,7 @@ namespace InstantNeRF
                     fars,
                     perturbFirst,
                     128,
-                    gammaGrad,
+                    dtGamma,
                     maxSteps
                     );
 
@@ -126,7 +126,7 @@ namespace InstantNeRF
             Tensor raysOrigin,
             Tensor raysDirection,
             float backgroundColor,
-            float gammaGrad = 0f,
+            float dtGamma = 0f,
             bool perturb = false,
             bool forceAllRays = false,
             uint maxSteps = 1024,
@@ -168,7 +168,7 @@ namespace InstantNeRF
                 perturb,
                 128,
                 forceAllRays,
-                gammaGrad,
+                dtGamma,
                 maxSteps
                 );
             /*
@@ -255,13 +255,11 @@ namespace InstantNeRF
                                     }
                                     cascadeXyzsWorld.Dispose();
                                 }
-                                //Console.WriteLine(d.DisposablesCount);
                                 grid[1].Dispose();
                                 grid[2].Dispose();
                                 coords.Dispose();
                                 indices.Dispose();
                                 xyzsWorld.Dispose();
-                                //Console.WriteLine(d.DisposablesCount);
                             }
                         }
 

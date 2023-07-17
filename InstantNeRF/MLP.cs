@@ -11,7 +11,7 @@ namespace InstantNeRF
         private Module colorNet;
         private Module encoderDir;
         private float bound;
-        private AutogradFunctions.TruncExp trunxExp;
+        private AutogradFunctions.TruncExp? trunxExp;
         public MLP(string name, float bound) : base(name)
         {
             this.bound = bound;
@@ -38,6 +38,7 @@ namespace InstantNeRF
         {
             Utils.printFirstNValues(positions, 3, "positions");
             Utils.printFirstNValues(directions, 3, "directions");
+            Console.WriteLine("bound: " + bound);
             //Sigma
             positions = (positions + this.bound) / (2 * this.bound);
 

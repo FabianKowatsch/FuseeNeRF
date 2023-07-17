@@ -5,7 +5,7 @@
   "datasetType": "synthetic",
   "aabbMin": -1.0,
   "aabbMax": 1.0,
-  "aabbScale": 1.0,
+  "aabbScale": 0.8,
   "offset": [ 0.0, 0.0, 0.0 ],
   "bgColor": [ 1.0, 1.0, 1.0 ],
   "imageDownscale": 2.0,
@@ -36,5 +36,13 @@
     "output_activation": "None",
     "n_neurons": 64,
     "n_hidden_layers": 2
+  },
+  "options": {
+    "datasetType": "real or synthetic datasets come with different recommended options, others may work too",
+    "dataPath_real": " E:\\Projects2023\\Instant-NGP-for-RTX-3000-and-4000\\data\\nerf\\fox",
+    "dataPath_synthetic": "D:\\Downloads2023\\nerf_synthetic\\nerf_synthetic\\lego",
+    "aabbMin": "real: -2, synthetic: -1",
+    "aabbMax": "real: 2, synthetic: 1",
+    "aabbScale": "real: 0.33, synthetic: 0.8"
   }
 }

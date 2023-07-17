@@ -28,7 +28,6 @@ namespace InstantNeRF
         public Tensor images;
         public Tensor intrinsics;
         public Tensor errorMap;
-        public float radius;
         public long batchSize;
 
         public DataProvider(Device device, string dataPath, string jsonName, string mode, float downScale, float aabbScale, float aabbMin, float aabbMax, float[] offset, float[] bgColor, int numRays, bool preload, string datasetType)
@@ -56,12 +55,12 @@ namespace InstantNeRF
             if (datasetType == "real")
             {
                 if (transforms.RootElement.TryGetProperty("w", out JsonElement wElement))
-                    width = (int)Math.Floor(wElement.GetInt32() / downscale);
+                    width = (int)Math.Floor(wElement.GetSingle() / downscale);
                 else
                     width = 0;
 
                 if (transforms.RootElement.TryGetProperty("h", out JsonElement hElement))
-                    height = (int)Math.Floor(hElement.GetInt32() / downscale);
+                    height = (int)Math.Floor(hElement.GetSingle() / downscale);
                 else
                     height = 0;
 
@@ -71,8 +70,6 @@ namespace InstantNeRF
                     this.errorMap = torch.ones(this.images.shape[0], 128 * 128, dtype: torch.float32);
                 else this.errorMap = torch.empty(0);
 
-                this.radius = this.poses.slice(2, 0, 3, 1).select(2, 3).norm(-1).mean(new long[] { 0 }).item<float>();
-
             }
             else if (datasetType == "synthetic")
             {
@@ -80,7 +77,6 @@ namespace InstantNeRF
                 if (this.mode == NerfMode.TRAIN)
                     this.errorMap = torch.ones(this.images.shape[0], 128 * 128, dtype: torch.float32);
                 else this.errorMap = torch.empty(0);
-                this.radius = this.poses.slice(1, 0, 3, 1).select(2, 3).norm(-1).mean(new long[] { 0 }).item<float>();
             }
             else
             {
@@ -159,14 +155,24 @@ namespace InstantNeRF
                     {
                         filePath = pathElement.GetString() ?? throw new Exception("wrong path");
                     }
-                    Tensor image = useSynthetic ? getImageDataFromPNG(Path.Combine(dataPath, filePath + ".png")) : getImageDataFromJPG(Path.Combine(dataPath, filePath + ".jpg"));
-                    Tensor transform = torch.from_array(Utils.arrayToNGPMatrix(mtx, this.aabbScale, this.offset));
+
                     if (!useSynthetic)
                     {
+                        bool imageExists = true;
+                        Tensor image = torch.empty(0);
+                        try
+                        {
+                            image = getImageDataFromJPG(Path.Combine(dataPath, filePath));
+                        }
+                        catch (System.IO.FileNotFoundException)
+                        {
+                            imageExists = false;
+                        }
+                        Tensor transform = torch.from_array(Utils.arrayToNGPMatrix(mtx, this.aabbScale, this.offset));
                         switch (mode)
                         {
                             case NerfMode.TRAIN:
-                                if (counter % 2 == 0)
+                                if (counter % 2 == 0 && imageExists)
                                 {
                                     imageList.Add(image);
 
@@ -174,21 +180,26 @@ namespace InstantNeRF
                                 }
                                 break;
                             case NerfMode.VAL:
-                                if (counter % 2 != 0)
+                                if (counter % 2 != 0 && imageExists)
                                 {
                                     imageList.Add(image);
                                     posesList.Add(transform);
                                 }
                                 break;
                             default:
-                                imageList.Add(image);
-                                posesList.Add(transform);
+                                if (imageExists)
+                                {
+                                    imageList.Add(image);
+                                    posesList.Add(transform);
+                                }
                                 break;
                         }
 
                     }
                     else
                     {
+                        Tensor image = getImageDataFromPNG(Path.Combine(dataPath, filePath + ".png"));
+                        Tensor transform = torch.from_array(Utils.arrayToNGPMatrix(mtx, this.aabbScale, this.offset));
                         imageList.Add(image);
                         posesList.Add(transform);
                     }

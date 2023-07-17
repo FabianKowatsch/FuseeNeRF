@@ -114,7 +114,7 @@ namespace InstantNeRF
 
             bool forceAllRays = (patchSize > 1);
 
-            (Tensor weightsSum, Tensor depth, Tensor predictedRGB) = this.nerfRenderer.runNerfTrain(compositeRaysTrain, raysOrigin, raysDirection, bgColor.item<float>(), forceAllRays: forceAllRays, gammaGrad: 0f, perturb: true);
+            (Tensor weightsSum, Tensor depth, Tensor predictedRGB) = this.nerfRenderer.runNerfTrain(compositeRaysTrain, raysOrigin, raysDirection, bgColor.item<float>(), forceAllRays: forceAllRays, dtGamma: 0f, perturb: true);
 
 
             Tensor loss = this.criterion.call(predictedRGB, gtRGB).mean(dimensions: new long[] { -1 });
@@ -186,7 +186,7 @@ namespace InstantNeRF
                 gtRGB = images * groundTruthImages.slice(-1, 3, -1, 1) + bgColor * (1 - groundTruthImages.slice(-1, 3, -1, 1));
             }
             else gtRGB = images;
-            (Tensor weightsSum, Tensor depthOut, Tensor rgbOut) = this.nerfRenderer.runNerfInference(raysOrigin, raysDirection, gammaGrad: 0f);
+            (Tensor weightsSum, Tensor depthOut, Tensor rgbOut) = this.nerfRenderer.runNerfInference(raysOrigin, raysDirection, dtGamma: 0f);
 
             Tensor predictedRGB = rgbOut.reshape(BATCH, HEIGHT, WIDTH, 3);
             Tensor predictedDepth = depthOut.reshape(BATCH, HEIGHT, WIDTH);
@@ -202,7 +202,7 @@ namespace InstantNeRF
             Tensor raysOrigin = data["raysOrigin"];
             Tensor raysDirection = data["raysDirection"];
 
-            (Tensor weightsSum, Tensor depthOut, Tensor rgbOut) = this.nerfRenderer.runNerfInference(raysOrigin, raysDirection, gammaGrad: 0f);
+            (Tensor weightsSum, Tensor depthOut, Tensor rgbOut) = this.nerfRenderer.runNerfInference(raysOrigin, raysDirection, dtGamma: 0f);
             Tensor predictedRGB = rgbOut.reshape(-1, height, width, 3);
             Tensor predictedDepth = depthOut.reshape(-1, height, width, 3);
 
