@@ -14,7 +14,7 @@ namespace InstantNeRF
         private string name;
         private NerfRenderer nerfRenderer;
         private optim.lr_scheduler.LRScheduler scheduler;
-        private TorchSharp.Modules.Adam optimizer;
+        private Adam optimizer;
         private Device device;
         private Loss<Tensor, Tensor, Tensor> criterion;
         private int evalEveryNEpochs;
@@ -35,13 +35,15 @@ namespace InstantNeRF
         private GradScaler scaler;
         private Tensor errorMap;
         private bool useEMA;
+        private float[] bgColor;
 
         public Trainer(
             string name,
             NerfRenderer renderer,
-            TorchSharp.Modules.Adam optimizerAdam,
+            Adam optimizerAdam,
             Loss<Tensor, Tensor, Tensor> criterion,
             int patchSize,
+            float[] bgColor,
             float emaDecay = 0.99f,
             int evalEveryNEpochs = 50,
             bool updateSchedulerEveryStep = true,
@@ -74,6 +76,7 @@ namespace InstantNeRF
             this.useEMA = useEMA;
             this.errorMap = torch.empty(0);
             this.scaler = new GradScaler();
+            this.bgColor = bgColor;
             if (loadCheckpoint)
             {
                 this.loadCheckpoint();
@@ -98,7 +101,7 @@ namespace InstantNeRF
                 images = Utils.srgbToLinear(images);
             }
 
-            Tensor bgColor = (C == 3) ? 1.0f : torch.rand_like(images);
+            Tensor bgColor = (C == 3) ? this.bgColor[0] : torch.rand_like(images);
 
             Tensor gtRGB;
 

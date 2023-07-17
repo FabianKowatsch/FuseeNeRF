@@ -165,7 +165,10 @@ namespace InstantNeRF
 
             Device device = raysOrigin.device;
             ScalarType type = raysDirection.dtype;
-
+            Console.WriteLine("  ");
+            Console.WriteLine("DEVICE: " + device);
+            Console.WriteLine("bound: " + bound);
+            Console.WriteLine("  ");
             long N = raysOrigin.shape[0];
             long M = N * maxSteps;
 
@@ -188,6 +191,8 @@ namespace InstantNeRF
             Tensor noises = perturb ? torch.rand(N, type, device) : torch.zeros(N, type, device);
 
             stepCounter = stepCounter.numel() == 0 ? torch.zeros(2, type, device) : stepCounter;
+
+            Utils.printDims(stepCounter, "counter");
 
             raymarchTrainApi(
                 raysOrigin.Handle,

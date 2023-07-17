@@ -192,6 +192,16 @@ namespace InstantNeRF
             }
             Console.WriteLine();
         }
+
+        public static void printDims(Tensor t, string name = "Tensor")
+        {
+            Console.WriteLine(name + ": type: " + t.dtype + " device: " + t.device + " numel: " + t.numel() + " contigous: " + t.is_contiguous());
+            for (int i = 0; i < t.shape.Length; i++)
+            {
+                Console.WriteLine(name + " : " + i + " | " + t.shape[i]);
+            }
+            Console.WriteLine(" ");
+        }
     }
     public enum ColorSpace
     {

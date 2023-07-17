@@ -14,14 +14,16 @@ namespace InstantNeRF
         private Device device;
         private NerfMode mode;
         private float downscale;
-        private float radiusScale;
+        private float aabbScale;
         private float[] offset;
-        private float bound;
         private int numRays;
         private int height;
         private int width;
         private string dataPath;
         private JsonDocument transforms;
+        public float aabbMin;
+        public float aabbMax;
+        public float[] bgColor;
         public Tensor poses;
         public Tensor images;
         public Tensor intrinsics;
@@ -29,14 +31,16 @@ namespace InstantNeRF
         public float radius;
         public long batchSize;
 
-        public DataProvider(Device device, string dataPath, string jsonName, string mode, float downScale, float radiusScale, float[] offset, float bound, int numRays, bool preload, string datasetType)
+        public DataProvider(Device device, string dataPath, string jsonName, string mode, float downScale, float aabbScale, float aabbMin, float aabbMax, float[] offset, float[] bgColor, int numRays, bool preload, string datasetType)
         {
             this.device = device;
             this.mode = Utils.modeFromString(mode);
             this.downscale = downScale;
-            this.radiusScale = radiusScale;
+            this.aabbScale = aabbScale;
             this.offset = offset;
-            this.bound = bound;
+            this.aabbMin = aabbMin;
+            this.aabbMax = aabbMax;
+            this.bgColor = bgColor;
             this.numRays = numRays;
             this.dataPath = dataPath;
             string pathToTransforms = Path.Combine(dataPath, jsonName + ".json");
@@ -156,7 +160,7 @@ namespace InstantNeRF
                         filePath = pathElement.GetString() ?? throw new Exception("wrong path");
                     }
                     Tensor image = useSynthetic ? getImageDataFromPNG(Path.Combine(dataPath, filePath + ".png")) : getImageDataFromJPG(Path.Combine(dataPath, filePath + ".jpg"));
-                    Tensor transform = torch.from_array(Utils.arrayToNGPMatrix(mtx, this.radiusScale, this.offset));
+                    Tensor transform = torch.from_array(Utils.arrayToNGPMatrix(mtx, this.aabbScale, this.offset));
                     if (!useSynthetic)
                     {
                         switch (mode)

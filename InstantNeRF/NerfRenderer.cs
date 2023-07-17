@@ -25,15 +25,15 @@ namespace InstantNeRF
         private Tensor aabbTrain;
         private Tensor aabbInference;
         private Tensor stepCounter;
-        public NerfRenderer(string name, float bound = 1.0f, float densityScale = 1f, float densityThreshhold = 0.01f, float minNear = 0.2f) : base(name)
+        public NerfRenderer(string name, float aabbMin, float aabbMax, float densityScale = 1f, float densityThreshhold = 0.01f, float minNear = 0.2f) : base(name)
         {
-            this.bound = bound;
+            this.bound = (aabbMax - aabbMin) / 2;
             this.densityScale = densityScale;
             this.densityThreshhold = densityThreshhold;
             this.gridSize = 64L;
             this.minNear = minNear;
             cascade = 1 + Convert.ToInt64(Math.Ceiling(Math.Log2(Convert.ToDouble(bound))));
-            this.aabbTrain = torch.FloatTensor(torch.from_array(new float[] { -bound, -bound, -bound, bound, bound, bound }));
+            this.aabbTrain = torch.FloatTensor(torch.from_array(new float[] { aabbMin, aabbMin, aabbMin, aabbMax, aabbMax, aabbMax }));
             this.aabbInference = aabbTrain.clone();
             long gridSize3D = Convert.ToInt64(Math.Pow((double)gridSize, 3));
             this.densityGrid = torch.zeros(new long[] { cascade, gridSize3D }, dtype: torch.float32);

@@ -143,19 +143,19 @@ namespace FuseeApp
                 Console.WriteLine("an error occured while loading a ´native library:" + e);
             }
 
-            string pathToData = @"D:\Downloads2023\nerf_synthetic\nerf_synthetic\lego";
-
             try
             {
                 Console.WriteLine("torch version: " + __version__);
                 Device device = cuda.is_available() ? CUDA : CPU;
 
-                DataProvider trainData = new DataProvider(device, pathToData, "transforms_train", "train", downScale: 2.0f, radiusScale: 1.0f, offset: new float[] { 0f, 0f, 0f }, bound: 1.0f, numRays: 2048, preload: false, datasetType: "synthetic");
-                DataProvider evalData = new DataProvider(device, pathToData, "transforms_val", "val", downScale: 2.0f, radiusScale: 1.0f, offset: new float[] { 0f, 0f, 0f }, bound: 1.0f, numRays: 2048, preload: false, datasetType: "synthetic");
+                Config config = new Config();
+
+                DataProvider trainData = new DataProvider(device, config.dataPath, config.trainDataFilename, "train", config.imageDownscale, config.aabbScale, config.aabbMin, config.aabbMax, config.offset, config.bgColor, config.nRays, preload: true, config.datasetType);
+                DataProvider evalData = new DataProvider(device, config.dataPath, config.evalDataFilename, "train", config.imageDownscale, config.aabbScale, config.aabbMin, config.aabbMax, config.offset, config.bgColor, config.nRays, preload: true, config.datasetType);
                 Console.WriteLine("created datasets");
 
 
-                NerfRenderer renderer = new NerfRenderer("NerfRenderer");
+                NerfRenderer renderer = new NerfRenderer("NerfRenderer", config.aabbMin, config.aabbMax);
                 Console.WriteLine("created net");
 
                 TorchSharp.Modules.Adam optimizer = optim.Adam(renderer.mlp.getParams(), lr: 0.01, beta1: 0.9, beta2: 0.99, eps: 1e-15);
@@ -164,7 +164,7 @@ namespace FuseeApp
                 Loss<Tensor, Tensor, Tensor> criterion = torch.nn.MSELoss(reduction: nn.Reduction.None);
                 Console.WriteLine("created loss");
 
-                Trainer trainer = new Trainer("NGP001", renderer, optimizer, criterion, 1, subdirectoryName: "workspace_lego_synthetic");
+                Trainer trainer = new Trainer("NGP001", renderer, optimizer, criterion, 1, config.bgColor, subdirectoryName: "workspace_lego_synthetic");
                 Console.WriteLine("created trainer");
 
                 _trainer = trainer;
