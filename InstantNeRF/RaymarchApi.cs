@@ -196,7 +196,9 @@ namespace InstantNeRF
             int colorActivation,
             int densityActivation,
             float aabb0,
-            float aabb1)
+            float aabb1,
+            float[] bgColor
+            )
         {
             Device device = output.device;
             Tensor positionsOut = torch.zeros(new long[] { nElementsCompacted, 7 }, torch.float32, device);
@@ -204,7 +206,7 @@ namespace InstantNeRF
             Tensor rayCounterCompacted = torch.zeros(new long[] { 1 }, torch.int32, device);
             Tensor numstepsCounterCompacted = torch.zeros(new long[] { 1 }, torch.int32, device);
 
-            Tensor bgColorCpu = torch.tensor(new float[] {1f,1f,1f}, torch.float32).cpu();
+            Tensor bgColorCpu = torch.tensor(bgColor, torch.float32).cpu();
 
             compactedCoordsApi(output.Handle,
                 positionsIn.Handle, 

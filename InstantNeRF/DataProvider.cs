@@ -15,13 +15,15 @@ namespace InstantNeRF
         private Device device;
         private NerfMode mode;
         private float downscale;
-        private float radiusScale;
-        private float offset;
-        private float bound;
+        private float[] offset;
+        public float[] bgColor;
         public int numRays;
         private int currentIndex;
         private string dataPath;
         private JsonDocument transforms;
+        public float aabbMax;
+        public float aabbMin;
+        public float aabbScale;
         public int width;
         public int height;
         public Tensor focals;
@@ -31,14 +33,16 @@ namespace InstantNeRF
         public Tensor raysAndRGBS;
         public long batchSize;
 
-        public DataProvider(Device device, string dataPath, string jsonName, string mode, float downScale, float radiusScale, float offset, float bound, int numRays, bool preload, string datasetType)
+        public DataProvider(Device device, string dataPath, string jsonName, string mode, float downScale, float aabbScale, float aabbMin, float aabbMax, float[] offset, float[]bgColor, int numRays, bool preload, string datasetType)
         {
             this.device = device;
             this.mode = Utils.modeFromString(mode);
             this.downscale = downScale;
-            this.radiusScale = radiusScale;
+            this.aabbScale = aabbScale;
             this.offset = offset;
-            this.bound = bound;
+            this.bgColor = bgColor;
+            this.aabbMin = aabbMin;
+            this.aabbMax = aabbMax;
             this.numRays = numRays;
             this.dataPath = dataPath;
             string pathToTransforms = Path.Combine(dataPath, jsonName + ".json");
@@ -172,8 +176,7 @@ namespace InstantNeRF
                     }
                     Tensor image = useSynthetic ? getImageDataFromPNG(Path.Combine(dataPath, filePath + ".png")) : getImageDataFromJPG(Path.Combine(dataPath, filePath + ".jpg"));
                     Tensor transform = torch.from_array(mtx);
-                    Utils.printDims(transform, "transform " + counter + " : ");
-                    transform.print();
+
                     if (!useSynthetic)
                     {
                         switch (mode)
@@ -211,7 +214,7 @@ namespace InstantNeRF
                 }
             }
             Tensor poses = torch.stack(posesList);
-            poses = Utils.posesToNGP(poses, new float[] { 1, -1, 1 }, this.radiusScale, this.offset);
+            poses = Utils.posesToNGP(poses, new float[] { 1, -1, 1 }, this.aabbScale, this.offset[0]);
             Tensor images = torch.stack(imageList);
             return (poses, images);
         }

@@ -17,6 +17,7 @@ namespace InstantNeRF
         private int nElementsBitfield;
         private int sizeIncludingMips;
         private float nearDistance;
+        private float[] bgColor;
         public int densityActivation;
         public int rgbActivation;
         private int targetBatchSize;
@@ -27,7 +28,7 @@ namespace InstantNeRF
         public Tensor densityBitfield;
         public Tensor densityMean;
         private Tensor densityGrid;
-        private DataInfo? dataInfo;
+        public DataInfo? dataInfo;
         private readonly int UPDATE_BLOCK_SIZE = 5000000;
         private readonly float CONE_ANGLE_CONST = 0.00390625f;
         private readonly int PADDED_OUTPUT_WIDTH = 1;
@@ -65,16 +66,13 @@ namespace InstantNeRF
 
             this.iteration = 0;
             this.emaStep = 0;
-
-            float aabbScale = 1.0f;
-            float aabbMin = 0.0f;
-            float aabbMax = 1.0f;
+            this.bgColor = dataProvider.bgColor;
             long nImages = dataProvider.images.size(0);
             Tensor focalLengths = dataProvider.focals;
             Tensor metaData = torch.from_array(new float[] { 0, 0, 0, 0, 0.5f, 0.5f, focalLengths[0].item<float>(), focalLengths[1].item<float>(), 0, 0, 0 });
             metaData = metaData.unsqueeze(0).repeat(nImages, 1);
             focalLengths = focalLengths.unsqueeze(0).repeat(nImages, 1);
-            this.dataInfo = new DataInfo(dataProvider.width, dataProvider.height, dataProvider.poses, focalLengths, aabbScale, aabbMin, aabbMax, metaData);
+            this.dataInfo = new DataInfo(dataProvider.width, dataProvider.height, dataProvider.poses, focalLengths, dataProvider.aabbScale, dataProvider.aabbMin, dataProvider.aabbMax, metaData);
         }
 
         public DataInfo getData() 
@@ -207,11 +205,13 @@ namespace InstantNeRF
                 data.Add("directions", directions);
                 return data;
             }
-            Dictionary<string, Tensor> dataForDensity = new Dictionary<string, Tensor>();
-            dataForDensity.Add("positions", positions);
-            dataForDensity.Add("directions", directions);
+            Dictionary<string, Tensor> dataForDensity = new Dictionary<string, Tensor>
+            {
+                { "positions", positions },
+                { "directions", directions }
+            };
             Tensor nerfOutputs = mlp.forward(dataForDensity)["raw"].detach().to(torch.float32);
-            Tensor[] compactedResults = RaymarchApi.compactedCoords(nerfOutputs, coords, rayNumsteps, this.targetBatchSize, rgbActivation, densityActivation, dataInfo.aabbMin, dataInfo.aabbMax);
+            Tensor[] compactedResults = RaymarchApi.compactedCoords(nerfOutputs, coords, rayNumsteps, this.targetBatchSize, rgbActivation, densityActivation, dataInfo.aabbMin, dataInfo.aabbMax, this.bgColor);
 
             Tensor compactedCoords = compactedResults[0];
             Tensor rayNumstepsCompacted = compactedResults[1];

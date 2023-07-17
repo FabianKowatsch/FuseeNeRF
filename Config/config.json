@@ -1,0 +1,40 @@
+{
+  "dataPath": "D:\\Downloads2023\\nerf_synthetic\\nerf_synthetic\\lego",
+  "trainDataFilename": "transforms_train",
+  "evalDataFilename": "transforms_val",
+  "datasetType": "synthetic",
+  "aabbMin": 0.0,
+  "aabbMax": 1.0,
+  "aabbScale":  1.0,
+  "offset": [ 0.5, 0.5, 0.5 ],
+  "bgColor": [1.0, 1.0, 1.0],
+  "imageDownscale": 2.0,
+  "nRays": 2048,
+  "learningRate": 0.01,
+  "posEncodingCfg": {
+    "otype": "HashGrid",
+    "n_levels": 8,
+    "n_features_per_level": 4,
+    "log2_hashmap_size": 19,
+    "base_resolution": 16
+  },
+  "dirEncodingCfg": {
+    "n_dims_to_encode": 3,
+    "otype": "SphericalHarmonics",
+    "degree": 4
+  },
+  "sigmaNetCfg": {
+    "otype": "FullyFusedMLP",
+    "activation": "ReLU",
+    "output_activation": "None",
+    "n_neurons": 64,
+    "n_hidden_layers": 1
+  },
+  "colorNetCfg": {
+    "otype": "FullyFusedMLP",
+    "activation": "ReLU",
+    "output_activation": "None",
+    "n_neurons": 64,
+    "n_hidden_layers": 2
+  }
+}

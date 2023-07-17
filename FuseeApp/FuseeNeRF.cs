@@ -143,15 +143,15 @@ namespace FuseeApp
                 Console.WriteLine("an error occured while loading a ´native library:" + e);
             }
 
-            string pathToData = @"D:\Downloads2023\nerf_synthetic\nerf_synthetic\lego";
-
             try
             {
                 Console.WriteLine("torch version: " + __version__);
                 Device device = cuda.is_available() ? CUDA : CPU;
 
-                DataProvider trainData = new DataProvider(device, pathToData, "transforms_train", "train", downScale: 2.0f, radiusScale: 1.0f, offset: 0.5f, bound: 1.0f, numRays: 2048, preload: false, datasetType: "synthetic");
-                DataProvider evalData = new DataProvider(device, pathToData, "transforms_val", "val", downScale: 2.0f, radiusScale: 1.0f, offset: 0.5f, bound: 1.0f, numRays: 2048, preload: false, datasetType: "synthetic");
+                Config config = new Config();
+
+                DataProvider trainData = new DataProvider(device, config.dataPath, config.trainDataFilename, "train", config.imageDownscale, config.aabbScale, config.aabbMin, config.aabbMax, config.offset, config.bgColor, config.nRays, preload: false, config.datasetType);
+                DataProvider evalData = new DataProvider(device, config.dataPath, config.evalDataFilename, "train", config.imageDownscale, config.aabbScale, config.aabbMin, config.aabbMax, config.offset, config.bgColor, config.nRays, preload: false, config.datasetType);
                 Console.WriteLine("created datasets");
 
                 GridSampler sampler = new GridSampler(trainData);
@@ -160,7 +160,7 @@ namespace FuseeApp
                 Network network = new Network(sampler);
                 Console.WriteLine("created net");
 
-                TorchSharp.Modules.Adam optimizer = optim.Adam(network.mlp.getParams(), lr: 0.01, beta1: 0.9, beta2: 0.99, eps: 1e-15);
+                TorchSharp.Modules.Adam optimizer = optim.Adam(network.mlp.getParams(), lr: config.learningRate, beta1: 0.9, beta2: 0.99, eps: 1e-15);
                 Console.WriteLine("created optimizer");
 
                 Loss<Tensor, Tensor, Tensor> criterion = torch.nn.MSELoss(reduction: nn.Reduction.None);
@@ -169,13 +169,6 @@ namespace FuseeApp
                 Trainer trainer = new Trainer("NGP001", optimizer, network, 1, subdirectoryName: "workspace_lego_synthetic");
                 Console.WriteLine("created trainer");
 
-                Tensor t = torch.rand(new long[2] { 3, 3});
-                Tensor tSliced = t.slice(-1, 0,1,1).squeeze(-1);
-                Tensor t2 = t.slice(-1, 1L, t.size((int)-1), 1L);
-
-                t.print();
-                tSliced.print();
-                t2.print();
                 _trainer = trainer;
                 _dataProvider = trainData;
             }

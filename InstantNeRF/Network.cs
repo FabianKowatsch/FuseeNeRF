@@ -18,7 +18,14 @@ namespace InstantNeRF
         private readonly int chunkSIze = 128;
         public Network(GridSampler sampler) : base("NerfNetwork") {
             this.sampler = sampler;
-            this.mlp = new MLP(1.0f);
+
+            float halfBound = 1.0f;
+
+            if(sampler.dataInfo != null )
+            {
+                halfBound = (sampler.dataInfo.aabbMax - sampler.dataInfo.aabbMin) / 2;
+            }
+            this.mlp = new MLP(halfBound);
             this.renderer = new VolumeRenderer(new float[] {0f, 0f, 0f});
             this.scaler = new GradScaler();
         }
