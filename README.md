@@ -4,27 +4,25 @@ This Project aims to provide an executable application for rendering Neural Radi
 
 ## Usage
 
-Currently, changes to the parameters like the dataset are hardcoded and need to be made by editing FuseeNeRF.cs. A User Interface and a .json config file will be added in the future
-
 - Open the .sln file in MS Visual Studio
-- specify the launch parameters in FuseeNeRF.cs like this
+- specify the launch parameters in Config/config.json
 - Instant-NGPs dataset and the original NeRFs datasets are supported, although most testing has been done on the synthetic lego dataset
 
-```csharp
-    string pathToData = @"C:\downloads\nerf_synthetic\nerf_synthetic\lego";
-
-    Device device = cuda.is_available() ? CUDA : CPU;
-
-    DataProvider trainData = new DataProvider(device, pathToData, "transforms_train", "train", downScale: 2.0f, radiusScale: 1.0f, offset: new float[] { 0f, 0f, 0f }, bound: 1.0f, numRays: 2048, preload: false, datasetType: "synthetic");
-    DataProvider evalData = new DataProvider(device, pathToData, "transforms_val", "val", downScale: 2.0f, radiusScale: 1.0f, offset: new float[] { 0f, 0f, 0f }, bound: 1.0f, numRays: 2048, preload: false, datasetType: "synthetic");
-
-    NerfRenderer renderer = new NerfRenderer("NerfRenderer");
-    
-    TorchSharp.Modules.Adam optimizer = optim.Adam(renderer.mlp.getParams(), lr: 0.01, beta1: 0.9, beta2: 0.99, eps: 1e-15);
-
-    Loss<Tensor, Tensor, Tensor> criterion = torch.nn.MSELoss(reduction: nn.Reduction.None);
-
-    Trainer trainer = new Trainer("NGP001", renderer, optimizer, criterion, 1, subdirectoryName: "workspace_lego_synthetic");
+```json
+    {
+    "dataPath": "D:\\path\\to\\data folder\\containing\\transforms.json file",
+    "trainDataFilename": "transforms_train",
+    "evalDataFilename": "transforms_val",
+    "datasetType": "synthetic",
+    "aabbMin": -1.0,
+    "aabbMax": 1.0,
+    "aabbScale": 0.8,
+    "offset": [ 0.0, 0.0, 0.0 ],
+    "bgColor": [ 1.0, 1.0, 1.0 ],
+    "imageDownscale": 2.0,
+    "nRays": 2048,
+    "learningRate": 0.01
+    }
 ```
 - rebuild the Solution or just the FuseeNeRF project for *Release x64* and launch \FuseeNeRF\Build\x64\Release\net7.0-windows\FuseeApp.exe
 
@@ -73,8 +71,8 @@ Currently no results can be seen:
 
 ### Future Goals
 
+- Configuration(done)
 - Fixing NaN Error
-- Configuration
 - User Interface
 
 ## References
