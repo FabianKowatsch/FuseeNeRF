@@ -23,8 +23,10 @@ __global__ void rays_sampler_cuda(
 )
 {
     const uint32_t i = threadIdx.x + blockIdx.x * blockDim.x;
+    
     // i (0,n_rays)
-
+    // assert(i == n_rays); or 
+    // assert(i == imgs_index.size()); // UH?
     if (i >= n_rays)
         return;
     uint32_t img = imgs_index[i];
@@ -75,11 +77,14 @@ __global__ void rays_sampler_cuda(
 
 
     uint32_t numsteps = j;
+    // printf(" numsteps: %d \n", numsteps); // UH?
+    // assert(numsteps > 0); UH?
     uint32_t base = atomicAdd(numsteps_counter, numsteps);
 
 
     if (base + numsteps > max_samples)
     {
+        // UH: log if we are skipping rays 
         numsteps_out[2 * i + 0] = 0;
         numsteps_out[2 * i + 1] = base;
         return;
@@ -97,6 +102,7 @@ __global__ void rays_sampler_cuda(
 
     if (j == 0)
     {
+        // UH: log if we are skipping rays
         ray_indices_out[i] = -1;
         return;
     }
