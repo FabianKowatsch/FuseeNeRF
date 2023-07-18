@@ -173,7 +173,10 @@ namespace InstantNeRF
             Tensor imageIndices = data["imageIndices"].to(torch.int32).contiguous();
             data["bgColor"] = data["bgColor"].to(torch.float32).contiguous();
 
-
+            Utils.printDims(raysOrigin, "raysO before sampling");
+            raysOrigin[48].print();
+            Utils.printDims(raysDirection, "raysD before sampling");
+            raysDirection[48].print();
 
             Tensor[] sampledResults = RaymarchApi.sampleRays(
                 raysOrigin, 

@@ -89,19 +89,37 @@ namespace InstantNeRF
             for (int i = 0; i < poses.shape[0]; i++)
             {
                 (Tensor origins, Tensor dirs) = getRaysFromPose(width, height, K, poses[i]);
+                if(i % 10 == 0)
+                {
+                    printDims(origins, "origins");
+                    origins[200, 200].print();
+
+                    printDims(dirs, "dirs");
+                    dirs[200, 200].print();
+
+                }
+
                 Tensor raysResult = torch.concatenate(new List<Tensor>() {origins, dirs }, 2);
                 raysList.Add(raysResult);
             }
             Tensor rays = torch.stack(raysList, 0);
-            result = torch.concatenate(new List<Tensor>() {rays, images}, 3); // [N, H, W, ro[3] + rd[3] + rgba[4]]
+            result = torch.concatenate(new List<Tensor>() {rays, images}, 3); // [N, H, W, ro[3] + rd[3] + rgba[4], added rgba]
 
             Tensor imageIndices = torch.arange(images.shape[0]).reshape(-1,1,1,1); // [N,1,1,1]
 
             imageIndices = torch.broadcast_to(imageIndices, result.shape[0], result.shape[1], result.shape[2], 1 ); // [N, H, W, 1]
 
-            result = torch.concatenate(new List<Tensor>() { result, imageIndices }, 3); // [N, H, W, 10+1]
+            result = torch.concatenate(new List<Tensor>() { result, imageIndices }, 3); // [N, H, W, 10+1, added indices]
 
             result = result.reshape(-1, 11).to(float32); // [N*H*W, 10+1]
+            printDims(result, "result");
+            /*
+            for (int i = 0; i < result.size(0); i++)
+            {
+                if(i % 10000 == 0)
+                result[i].print();
+            }
+            */
 
             return result;
         }
@@ -115,7 +133,6 @@ namespace InstantNeRF
             Tensor camToWorldSliced = camToWorld.slice(0, 0, 3, 1).slice(1, 0, 3, 1);
             Tensor rayDirections = torch.matmul(camToWorldSliced, directions.unsqueeze(3)).select(-1, 0);
             rayDirections = rayDirections / torch.norm(rayDirections, -1, true);
-
             Tensor rayOrigins = torch.broadcast_to(camToWorld.slice(0, 0, 3, 1).select(-1, camToWorld.size(-1) -1), rayDirections.shape);
 
             return (rayOrigins, rayDirections);

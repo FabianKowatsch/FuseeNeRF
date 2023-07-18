@@ -77,7 +77,6 @@ __global__ void rays_sampler_cuda(
 
 
     uint32_t numsteps = j;
-    // printf(" numsteps: %d \n", numsteps); // UH?
     // assert(numsteps > 0); UH?
     uint32_t base = atomicAdd(numsteps_counter, numsteps);
 
@@ -98,14 +97,20 @@ __global__ void rays_sampler_cuda(
     numsteps_out[2 * i + 0] = numsteps;
     numsteps_out[2 * i + 1] = base;
 
-    //printf(" idx: %d , step: %d \n", ray_idx, base);
+    if (ray_idx % 100 == 0) {
+        Vector3f vec = ray_o + 0.1 * ray_d;
+
+        printf("ray_pos: %f, %f, %f | numsteps: %i\n", vec.x(), vec.y(), vec.z(), numsteps);
+    }
 
     if (j == 0)
     {
-        // UH: log if we are skipping rays
+        //printf("early exit \n");
         ray_indices_out[i] = -1;
         return;
     }
+    printf("continued!\n");
+
     /*
     Vector3f warped_dir = warp_direction(ray_d);
     t = startt;

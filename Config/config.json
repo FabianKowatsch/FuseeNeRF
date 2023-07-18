@@ -5,7 +5,7 @@
   "datasetType": "synthetic",
   "aabbMin": 0.0,
   "aabbMax": 1.0,
-  "aabbScale":  1.0,
+  "aabbScale":  0.33,
   "offset": [ 0.5, 0.5, 0.5 ],
   "bgColor": [1.0, 1.0, 1.0],
   "imageDownscale": 2.0,

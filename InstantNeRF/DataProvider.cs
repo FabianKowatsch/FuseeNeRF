@@ -5,6 +5,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 using SkiaSharp;
+using System.Numerics;
 
 namespace InstantNeRF
 {
@@ -104,6 +105,7 @@ namespace InstantNeRF
                 Tensor indices = torch.randperm(rays.size(0));
                 Tensor shuffledRays = rays[indices];
                 this.raysAndRGBS = shuffledRays;
+                Utils.printDims(this.raysAndRGBS, "shuffled result");
             }
             else
             {
@@ -272,12 +274,13 @@ namespace InstantNeRF
                 {
                     for (int x = 0; x < width; x++)
                     {
-                        Rgba32 pixel = image[x, y];
+                        Vector4 color = image[x, y].ToVector4();
 
-                        floatArray[x, y, 0] = pixel.R / 255f;
-                        floatArray[x, y, 1] = pixel.G / 255f;
-                        floatArray[x, y, 2] = pixel.B / 255f;
-                        floatArray[x, y, 2] = pixel.A / 255f;
+                        floatArray[x, y, 0] = color.X;
+                        floatArray[x, y, 1] = color.Y;
+                        floatArray[x, y, 2] = color.Z;
+                        floatArray[x, y, 3] = color.W;
+
                     }
                 }
                 return torch.from_array(floatArray);
@@ -286,7 +289,7 @@ namespace InstantNeRF
 
         public Dictionary<string, Tensor> getTrainData() 
         {
-            Dictionary<string, Tensor> results = new Dictionary<string, Tensor>();
+            
 
             if(this.currentIndex + numRays > this.raysAndRGBS.size(0))
                 this.currentIndex = 0;
@@ -297,25 +300,35 @@ namespace InstantNeRF
             Utils.printDims(raysAndRGBS, "totalData");
             Tensor batch = this.raysAndRGBS.slice(0, startingIndex, endIndex, 1);
             Utils.printDims(batch, "batch");
-            results.Add("raysOrigin", batch.slice(1, 0, 3, 1));
-            results.Add("raysDirection", batch.slice(1, 3, 6, 1));
 
-            //Color perturbation while training
+            Tensor raysO = batch.slice(1, 0, 3, 1);
+            Tensor raysD = batch.slice(1, 3, 6, 1);
 
             Tensor gtColors = batch.slice(1, 6, 9, 1);
             Tensor alpha = batch.slice(1, 9, 10, 1);
-            Tensor bgColor = torch.rand(gtColors.shape);
+            Tensor indices = batch.slice(1, 10, batch.size(1), 1);
 
-            gtColors = gtColors * alpha + bgColor * (1-alpha);
+            //Color perturbation while training
+            Tensor bgColor = torch.rand(gtColors.shape, torch.float32);
 
-            results.Add("gt", gtColors.to(float32));
-            results.Add("alpha", alpha);
-            results.Add("bgColor", bgColor.to(float32));
-            results.Add("imageIndices", batch.slice(1, 10, batch.size(1), 1));
+            if (this.mode == NerfMode.TRAIN)
+            {
+                gtColors = gtColors * alpha + bgColor * (1 - alpha);
+            }
 
 
 
             this.currentIndex += numRays;
+
+            Dictionary<string, Tensor> results = new Dictionary<string, Tensor>() 
+            {
+                { "raysOrigin", raysO },
+                {"raysDirection", raysD},
+                {"gt", gtColors.to(float32)},
+                {"alpha", alpha },
+                {"bgColor", bgColor.to(float32) },
+                {"imageIndices", indices }
+            };
 
             return results;
 

@@ -31,24 +31,30 @@ namespace InstantNeRF
         }
         public Dictionary<string, Tensor> forward( Dictionary<string, Tensor> data) 
         {
+            /*
             Console.WriteLine("-:-:- before sampling -:-:-");
 
             foreach (var key in data.Keys)
             {
                 Utils.printDims(data[key], key + " before sampling");
             }
+            */
             data = this.sampler.Sample(data, this.mlp);
+            /*
             Console.WriteLine("-:-:- after sampling -:-:-");
             foreach (var key in data.Keys)
             {
                 Utils.printDims(data[key], key + " after sampling");
             }
+            */
             data = this.mlp.forward(data);
+            /*
             Console.WriteLine("-:-:- afetr mlp -:-:-");
             foreach (var key in data.Keys)
             {
                 Utils.printDims(data[key], key + " after mlp");
             }
+            */
             return this.renderer.forward(sampler, data);
         }
 
