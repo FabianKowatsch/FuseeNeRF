@@ -113,7 +113,8 @@ namespace InstantNeRF
             {
                 using (torch.no_grad())
                 {
-                    Dictionary<string, Tensor> data = Utils.getRays(pose, intrinsics, renderHeight, renderWidth, torch.empty(0));
+                    (Tensor raysO, Tensor raysDir) = Utils.getRays(pose, intrinsics, renderHeight, renderWidth, torch.empty(0));
+                    Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "rayOrigins", raysO }, { "rayDirections", raysDir } };
 
                     if (depth)
                     {

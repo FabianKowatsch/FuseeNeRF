@@ -10,7 +10,7 @@ __global__ void rays_sampler_cuda(
     const Vector3f* __restrict__ rays_d,
     const uint8_t* __restrict__ density_grid,
     const float cone_angle_constant,
-    const TrainingImageMetadata* __restrict__ metadata,
+    const float* __restrict__ metadata,
     const uint32_t* __restrict__ imgs_index,
     uint32_t* __restrict__ ray_counter,
     uint32_t* __restrict__ numsteps_counter,
@@ -33,9 +33,11 @@ __global__ void rays_sampler_cuda(
     rng.advance(i * N_MAX_RANDOM_SAMPLES_PER_RAY());
 
     const Matrix<float, 3, 4> xform = training_xforms[img];
-    const Vector2f focal_length = metadata[img].focal_length;
 
-    const Vector3f light_dir_warped = warp_direction(metadata[img].light_dir);
+    const Vector2f focal_length(metadata[6], metadata[7]);
+    const Vector3f light_dir(metadata[8], metadata[9], metadata[10]);
+
+    const Vector3f light_dir_warped = warp_direction(light_dir);
 
     Vector3f ray_o = rays_o[i];
     Vector3f ray_d = rays_d[i];
@@ -97,31 +99,33 @@ __global__ void rays_sampler_cuda(
     numsteps_out[2 * i + 0] = numsteps;
     numsteps_out[2 * i + 1] = base;
 
-    if (ray_idx % 100 == 0) {
-        Vector3f vec = ray_o + 0.1 * ray_d;
-
-        printf("ray_pos: %f, %f, %f | numsteps: %i\n", vec.x(), vec.y(), vec.z(), numsteps);
-    }
 
     if (j == 0)
     {
-        //printf("early exit \n");
+        printf("early exit \n");
         ray_indices_out[i] = -1;
         return;
     }
-    printf("continued!\n");
+    //printf("continued!\n");
 
-    /*
+ 
     Vector3f warped_dir = warp_direction(ray_d);
     t = startt;
     j = 0;
+
+    if (ray_idx % 100 == 0) {
+        printf("warped dir: %f, %f, %f | startt: %f\n", warped_dir.x(), warped_dir.y(), warped_dir.z(), t);
+        //printf("warped pos: %f | warped dir: %f | warped pos: %f | warped dt: %f | warped lightdir: %f | coords stride: %i \n", warp_position(pos, aabb).x(), warped_dir.x(), warp_dt(t), light_dir_warped.x(), coords_out.stride_in_bytes);
+    }
+
+
     while (aabb.contains(pos = ray_o + t * ray_d) && j < numsteps)
     {
         float dt = calc_dt(t, cone_angle);
         uint32_t mip = mip_from_dt(dt, pos);
         if (density_grid_occupied_at(pos, density_grid, mip))
         {
-
+           
             coords_out(j)->set_with_optional_light_dir(warp_position(pos, aabb), warped_dir, warp_dt(dt), light_dir_warped, coords_out.stride_in_bytes);
             ++j;
             t += dt;
@@ -132,6 +136,7 @@ __global__ void rays_sampler_cuda(
             t = advance_to_next_voxel(t, cone_angle, pos, ray_d, idir, res);
         }
     }
+    /*
     */
 }
 
@@ -160,7 +165,7 @@ void rays_sampler_api(
     Vector3f* rays_o_p = (Vector3f*)rays_o_pointer;
     Vector3f* rays_d_p = (Vector3f*)rays_d_pointer;
     Eigen::Matrix<float, 3, 4>* transforms_p = (Eigen::Matrix<float, 3, 4>*)xforms.data_ptr();
-    TrainingImageMetadata* metadata_p = (TrainingImageMetadata*)metadata.data_ptr();
+    float* metadata_p = (float*)metadata.data_ptr();
 
     uint8_t* density_grid_bitfield_p = (uint8_t*)density_grid_bitfield.data_ptr();
     uint32_t* imgs_id_p = (uint32_t*)imgs_id.data_ptr();

@@ -69,8 +69,7 @@ namespace InstantNeRF
             this.bgColor = dataProvider.bgColor;
             long nImages = dataProvider.images.size(0);
             Tensor focalLengths = dataProvider.focals;
-            Tensor metaData = torch.from_array(new float[] { 0, 0, 0, 0, 0.5f, 0.5f, focalLengths[0].item<float>(), focalLengths[1].item<float>(), 0, 0, 0 });
-            metaData = metaData.unsqueeze(0).repeat(nImages, 1);
+            Tensor metaData = torch.from_array(new float[] { 0f, 0f, 0f, 0f, 0.5f, 0.5f, focalLengths[0].item<float>(), focalLengths[1].item<float>(), 0f, 0f, 0f });
             focalLengths = focalLengths.unsqueeze(0).repeat(nImages, 1);
             this.dataInfo = new DataInfo(dataProvider.width, dataProvider.height, dataProvider.poses, focalLengths, dataProvider.aabbScale, dataProvider.aabbMin, dataProvider.aabbMax, metaData);
         }

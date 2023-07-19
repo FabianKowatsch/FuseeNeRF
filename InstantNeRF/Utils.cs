@@ -49,10 +49,12 @@ namespace InstantNeRF
                 posesList.Add(pose);
             }
             Tensor result = torch.stack(posesList).to(float32);
-            return result.permute(0, 2, 1);
+            //return result.permute(0, 2, 1);
+            return result;
         }
         public static Tensor matrixToNGP(Tensor matrix, Tensor correctPose, float scale, float offset) 
         {
+            /*
             for (int i = 0; i < matrix.shape[0]; i++)
             {
                 matrix[i, 0] *= correctPose[0];
@@ -63,8 +65,16 @@ namespace InstantNeRF
 
             Tensor indices = torch.LongTensor(torch.from_array(new long[] {1,2,0}));
             matrix = matrix[indices];
+            */
+            TorchSharp.Utils.TensorAccessor<float> pose = matrix.data<float>();
+            float[,] output = new float[,]
+            {
+                {pose[1,0], -pose[1,1], -pose[1,2], pose[1,3] * scale + offset},
+                 {pose[2,0], -pose[2,1], -pose[2,2], pose[2,3] * scale + offset},
+                  {pose[0,0], -pose[0,1], -pose[0,2], pose[0,3] * scale + offset}
 
-            return matrix;
+            };
+            return torch.from_array(output, torch.float32);
         }
 
         public static float[,] fuseeMatrixToNGPMatrix(float[] pose, float scale, float[] offset)
@@ -89,15 +99,6 @@ namespace InstantNeRF
             for (int i = 0; i < poses.shape[0]; i++)
             {
                 (Tensor origins, Tensor dirs) = getRaysFromPose(width, height, K, poses[i]);
-                if(i % 10 == 0)
-                {
-                    printDims(origins, "origins");
-                    origins[200, 200].print();
-
-                    printDims(dirs, "dirs");
-                    dirs[200, 200].print();
-
-                }
 
                 Tensor raysResult = torch.concatenate(new List<Tensor>() {origins, dirs }, 2);
                 raysList.Add(raysResult);
@@ -113,37 +114,33 @@ namespace InstantNeRF
 
             result = result.reshape(-1, 11).to(float32); // [N*H*W, 10+1]
             printDims(result, "result");
-            /*
-            for (int i = 0; i < result.size(0); i++)
-            {
-                if(i % 10000 == 0)
-                result[i].print();
-            }
-            */
 
             return result;
         }
+
+        //DEV METHOD ALTERED
         public static (Tensor rayOrigins, Tensor rayDirections) getRaysFromPose(int width, int height, Tensor K, Tensor camToWorld)
         {
-            camToWorld = camToWorld.transpose(1, 0);
-            Tensor[] ij = torch.meshgrid(new List<Tensor> { torch.arange(width), torch.arange(height) }, indexing: "xy");
-            Tensor i = ij[0] + 0.5;
-            Tensor j = ij[1] + 0.5;
+            Tensor[] ij = torch.meshgrid(new List<Tensor> { torch.linspace(0, width - 1, width), torch.linspace(0, height - 1, height) });
+            Tensor i = ij[0].t() + 0.5f;
+            Tensor j = ij[1].t() + 0.5f;
             Tensor directions = torch.stack(new List<Tensor> { (i - K[0][2]) / K[0][0], (j - K[1][2]) / K[1][1], torch.ones_like(i) }, -1);
-            Tensor camToWorldSliced = camToWorld.slice(0, 0, 3, 1).slice(1, 0, 3, 1);
-            Tensor rayDirections = torch.matmul(camToWorldSliced, directions.unsqueeze(3)).select(-1, 0);
+            Tensor camToWorld3x3 = camToWorld.slice(0, 0, 3, 1).slice(1, 0, 3, 1);
+            Tensor rayDirections = torch.matmul(camToWorld3x3, directions.unsqueeze(3)).select(-1, 0);
             rayDirections = rayDirections / torch.norm(rayDirections, -1, true);
-            Tensor rayOrigins = torch.broadcast_to(camToWorld.slice(0, 0, 3, 1).select(-1, camToWorld.size(-1) -1), rayDirections.shape);
+
+            Tensor rayOrigins = torch.broadcast_to(camToWorld.slice(0, 0, 3, 1).select(-1, camToWorld.size(-1) - 1), rayDirections.shape);
 
             return (rayOrigins, rayDirections);
         }
 
-        public static Dictionary<string, Tensor> getRays(Tensor poses, Tensor intrinsics, int height, int width, Tensor errorMap, int n = -1, int patchSize = 1)
+        //MAIN BRANCH METHOD
+        public static (Tensor rayOrigins, Tensor rayDirections) getRays(Tensor pose, Tensor intrinsics, int height, int width, Tensor errorMap, int align = -1, int patchSize = 1)
         {
-            poses = poses.unsqueeze(0);
+            pose = pose.unsqueeze(0);
             errorMap = errorMap.unsqueeze(0);
-            Device device = poses.device;
-            long batchSize = poses.shape[0];
+            Device device = pose.device;
+            long batchSize = pose.shape[0];
             Tensor fX = intrinsics[0];
             Tensor fY = intrinsics[1];
             Tensor cX = intrinsics[2];
@@ -156,12 +153,12 @@ namespace InstantNeRF
             Dictionary<string, Tensor> results = new Dictionary<string, Tensor>();
 
             Tensor indices;
-            if (n > 0)
+            if (align > 0)
             {
-                n = Math.Min(n, height * width);
+                align = Math.Min(align, height * width);
                 if (patchSize > 1)
                 {
-                    int numPatch = n / (int)Math.Pow(patchSize, 2);
+                    int numPatch = align / (int)Math.Pow(patchSize, 2);
                     Tensor indicesX = torch.randint(0, height - patchSize, size: numPatch, device: device);
                     Tensor indicesY = torch.randint(0, width - patchSize, size: numPatch, device: device);
                     indices = torch.stack(new List<Tensor> { indicesX, indicesY });
@@ -170,22 +167,22 @@ namespace InstantNeRF
                     indices = indices.unsqueeze(1) + offsets.unsqueeze(0);
                     indices = indices.view(-1, 2);
                     indices = indices.select(1, 0) * width + indices.select(1, 1);
-                    indices = indices.expand(batchSize, n);
+                    indices = indices.expand(batchSize, align);
                 }
                 else if (errorMap.numel() == 0)
                 {
-                    indices = torch.randint(0, height * width, size: n, device: device);
-                    indices = indices.expand(batchSize, n);
+                    indices = torch.randint(0, height * width, size: align, device: device);
+                    indices = indices.expand(batchSize, align);
                 }
                 else
                 {
-                    Tensor indicesCoarse = torch.multinomial(errorMap.to(device), n, replacement: false);
+                    Tensor indicesCoarse = torch.multinomial(errorMap.to(device), align, replacement: false);
                     Tensor indicesX = indicesCoarse.floor_divide(128);
                     Tensor indicesY = indicesCoarse % 128;
                     int sampledX = height / 128;
                     int sampledY = width / 128;
-                    indicesX = torch.LongTensor(indicesX * sampledX + torch.rand(batchSize, n, device: device) * sampledX).clamp(max: height - 1);
-                    indicesY = torch.LongTensor(indicesY * sampledY + torch.rand(batchSize, n, device: device) * sampledY).clamp(max: width - 1);
+                    indicesX = torch.LongTensor(indicesX * sampledX + torch.rand(batchSize, align, device: device) * sampledX).clamp(max: height - 1);
+                    indicesY = torch.LongTensor(indicesY * sampledY + torch.rand(batchSize, align, device: device) * sampledY).clamp(max: width - 1);
                     indices = indicesX * width + indicesY;
 
                     results["indicesCoarse"] = indicesCoarse;
@@ -208,13 +205,13 @@ namespace InstantNeRF
             directions = directions / torch.norm(directions, dimension: -1, keepdim: true);
 
 
-            Tensor raysDirection = directions.matmul(poses.slice(1, 0, 3, 1).slice(2, 0, 3, 1).transpose(-1, -2));
-            Tensor raysOrigin = poses.slice(1, 0, 3, 1).select(2, 3);
-            raysOrigin = raysOrigin.expand_as(raysDirection);
-            results["raysOrigin"] = raysOrigin;
-            results["raysDirection"] = raysDirection;
+            Tensor rayDirections = directions.matmul(pose.slice(1, 0, 3, 1).slice(2, 0, 3, 1).transpose(-1, -2));
+            Tensor rayorigins = pose.slice(1, 0, 3, 1).select(2, 3);
+            rayorigins = rayorigins.expand_as(rayDirections);
+            results["raysOrigin"] = rayorigins;
+            results["raysDirection"] = rayDirections;
 
-            return results;
+            return (rayorigins, rayDirections);
         }
 
         public static void printFirstNValues(Tensor t, int n, string name = "Tensor")

@@ -137,23 +137,12 @@ namespace InstantNeRF
             Tensor rayCounter = torch.zeros(new long[] { 2 }, torch.int32, device);
             raysOrigin = raysOrigin.to(device); 
             raysDirection = raysDirection.to(device);
-            Utils.printFirstNValues(coordsOut, 4, "coordsOut before ray");
-            Utils.printDims(raysDirection, "rayDir");
-            raysDirection[100].print();
-            Utils.printDims(raysOrigin, "rayO");
-            raysOrigin[100].print();
-            Utils.printDims(densityBitfield, "bitfield");
             Utils.printDims(metadata, "metadata");
             Utils.printDims(imagesIndices, "imageIdx");
             Utils.printDims(transforms, "transforms");
-            Console.WriteLine("aabbMin: " + aabb0);
-            Console.WriteLine("aabbMax: " + aabb1);
-            Console.WriteLine("nearDistance: " + nearDistance);
-            Console.WriteLine("coneAngleConstant: " + coneAngleConstant);
-            Utils.printDims(coordsOut, "coordsOut");
-            Utils.printDims(rayCounter, "rayCounter");
-            Utils.printDims(rayIndices, "rayIdx");
-            Utils.printDims(rayCounter, "counter");
+
+            Console.WriteLine("metadata");
+            metadata[0].print();
 
             sampleRaysApi(raysOrigin.Handle,
                 raysDirection.Handle,
@@ -171,8 +160,8 @@ namespace InstantNeRF
                 rayCounter.Handle);
 
             Utils.printDims(coordsOut, "coordsOut");
-            Utils.printFirstNValues(rayIndices, 4, "rayIndices");
             Utils.printFirstNValues(coordsOut, 4, "coordsOut");
+            Utils.printFirstNValues(rayIndices, 4, "rayIndices");
 
             coordsOut.detach_();
             rayIndices.detach_();
