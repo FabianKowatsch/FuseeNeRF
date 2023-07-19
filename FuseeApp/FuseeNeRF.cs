@@ -39,7 +39,7 @@ namespace FuseeApp
         private float _focalY;
         private Texture texture;
         private int currentStep = 0;
-        private readonly int stepstoTrain = 32;
+        private readonly int stepsToTrain = 32;
         private DataProvider _dataProvider;
 
         private Transform _camPivotTransform;
@@ -220,7 +220,7 @@ namespace FuseeApp
             _angleHorz += _angleVelHorz;
             _angleVert += _angleVelVert;
 
-            if(currentStep < stepstoTrain)
+            if(currentStep < stepsToTrain)
             {
                 TrainStep();
                 //InferenceStep();
@@ -261,7 +261,6 @@ namespace FuseeApp
         {
             Tensor loss = _trainer.trainStepRT(currentStep, _dataProvider);
             currentStep++;
-            Console.WriteLine(loss.ToString());
 
         }
 

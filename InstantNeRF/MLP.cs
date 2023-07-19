@@ -41,21 +41,18 @@ namespace InstantNeRF
 
         public Dictionary<string, Tensor> forward(Dictionary<string, Tensor> data)
         {
-            long[] shape = data["positions"].shape;
-            long[] unflattenedShape = shape.Take(shape.Length -1).ToArray();
+            long batchSize = data["positions"].size(0);
             Tensor outputsFlat = this.runMLP(data["positions"], data["directions"]);
-
-            data.Add("raw", outputsFlat.reshape(unflattenedShape));
+            data.Add("raw", outputsFlat.reshape(batchSize, outputsFlat.size(-1)));
             return data;
         }
 
         public Tensor runMLP(Tensor positions, Tensor directions)
         {
-            Utils.printDims(positions, "positions");
-            Utils.printDims(directions, "directions");
             // Input Encoding
             Console.WriteLine("-:-:- before encoding pos -:-:-");
             Tensor positionsFlat = torch.reshape(positions, -1, positions.size(-1)).detach();
+
             Tensor positionsEncoded = this.positionalEnc.forward(positionsFlat);
 
             if (positions.Dimensions > directions.Dimensions)
@@ -70,7 +67,8 @@ namespace InstantNeRF
             // Networks
             Console.WriteLine("-:-:- before sigma -:-:-");
             Tensor densityOut = this.sigmaNet.forward(positionsEncoded);
-            Tensor sigma = densityOut.slice(-1, 0, 1, 1).squeeze(-1);
+
+            Tensor sigma = densityOut.slice(-1, 0, 1, 1);
             Tensor geometryFeatures = densityOut.slice(-1, 1, densityOut.size(-1), 1);
 
             Tensor colorNetIn = torch.cat(new List<Tensor>() { geometryFeatures, directionsEncoded }, -1);
@@ -78,12 +76,13 @@ namespace InstantNeRF
             Console.WriteLine("-:-:- before color -:-:-");
             Tensor colorOutput = this.colorNet.forward(colorNetIn);
 
-            return torch.cat(new List<Tensor>() { colorOutput, sigma });
+            Tensor output = torch.cat(new List<Tensor>() { colorOutput, sigma }, -1).to(torch.float32).contiguous();
+
+            return output;
         }
 
         public Tensor density(Tensor positionsFlat)
         {
-            Utils.printDims(positionsFlat, "positionsFlat");
             Tensor positionsEncoded = this.positionalEnc.forward(positionsFlat);
             Tensor densityOutput = this.sigmaNet.forward(positionsEncoded);
             Tensor density = densityOutput.slice(1, 0, 1, 1).to(torch.float32);

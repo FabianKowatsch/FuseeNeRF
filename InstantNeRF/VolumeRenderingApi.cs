@@ -74,7 +74,7 @@ namespace InstantNeRF
             public DifferentiableRenderer() { }
 
             private VolumeRenderingContext? ctx;
-            public Tensor Forward(Tensor output,
+            public Tensor Forward(Tensor networkOutput,
                 Tensor positions, 
                 Tensor rayNumsteps, 
                 Tensor rayNumstepsCompacted, 
@@ -85,15 +85,15 @@ namespace InstantNeRF
                 float aabbMin, 
                 float aabbMax)
             {
-                Device device = output.device;
+                Device device = networkOutput.device;
                 positions.detach_();
                 rayNumsteps.detach_();
                 rayNumstepsCompacted.detach_();
                 densityMean.detach_();
                 long nRaysPerBatch = rayNumsteps.size(0);
-                Tensor rgbs = torch.zeros(new long[] { nRaysPerBatch, 3 }, torch.float32, device);
+                Tensor rgbs = torch.zeros(new long[] { nRaysPerBatch, 3 }, torch.float32, device, requires_grad: true);
 
-                calculateRGBsForwardApi(output.Handle,
+                calculateRGBsForwardApi(networkOutput.Handle,
                     positions.Handle,
                     rayNumsteps.Handle,
                     rayNumstepsCompacted.Handle,
@@ -105,7 +105,7 @@ namespace InstantNeRF
                     rgbs.Handle);
 
                 this.ctx = new VolumeRenderingContext(rgbActivation, densityActivation, aabbMin, aabbMax);
-                ctx.saveForBackward(new List<Tensor> { output, rayNumsteps, rayNumstepsCompacted, positions, rgbs, densityMean });
+                ctx.saveForBackward(new List<Tensor> { networkOutput, rayNumsteps, rayNumstepsCompacted, positions, rgbs, densityMean });
 
                 return rgbs;
             }
@@ -115,20 +115,20 @@ namespace InstantNeRF
 
                 if (this.ctx != null)
                 {
-                    Tensor output = ctx.savedTensors[0];
+                    Tensor networkOutput = ctx.savedTensors[0];
                     Tensor rayNumsteps = ctx.savedTensors[1];
                     Tensor rayNumstepsCompacted = ctx.savedTensors[2];
                     Tensor positions = ctx.savedTensors[3];
                     Tensor rgbs = ctx.savedTensors[4];
                     Tensor densityMean = ctx.savedTensors[5];
 
-                    long nElements = output.size(0);
-                    Device device = output.device;
+                    long nElements = networkOutput.size(0);
+                    Device device = networkOutput.device;
 
                     Tensor outputGrad = torch.zeros(new long[] { nElements, 4 }, torch.float32, device);
-                    Tensor colorsGrad = rgbs.grad() ?? torch.zeros_like(rgbs);
+                    Tensor colorsGrad = rgbs.grad() ?? torch.empty(0);
 
-                    calculateRGBsBackwardApi(output.Handle, 
+                    calculateRGBsBackwardApi(networkOutput.Handle, 
                         rayNumstepsCompacted.Handle,
                         positions.Handle,
                         colorsGrad.Handle,
@@ -140,7 +140,7 @@ namespace InstantNeRF
                         ctx.aabbMax,
                         outputGrad.Handle);
 
-                    output.backward(new List<Tensor>() { outputGrad });
+                    networkOutput.backward(new List<Tensor>() { outputGrad });
                 }
 
             }

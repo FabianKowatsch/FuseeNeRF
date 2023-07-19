@@ -102,10 +102,6 @@ namespace InstantNeRF
 
             public (IntPtr ctx, Tensor output) forward(Tensor input, Tensor parameters)
             {
-                //Console.WriteLine(input.size(0));
-                //Console.WriteLine(input.size(1));
-                //Console.WriteLine(parameters.size(0));
-                //IntPtr paramHandle = parameters.numel() == 0 ? torch.zeros(0, torch.float32, input.device).Handle : parameters.Handle;
                 Handle2D tuple = TcnnWrapper.forward(handle, input.Handle, parameters.Handle);
                 Tensor output = Tensor.UnsafeCreateTensor(tuple.handle2);
                 return (tuple.handle1, output);

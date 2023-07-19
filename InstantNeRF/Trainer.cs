@@ -150,16 +150,22 @@ namespace InstantNeRF
 
             using (var d = torch.NewDisposeScope())
             {
-                var data = dataProvider.getTrainData();
+                Dictionary<string, Tensor> data = dataProvider.getTrainData();
                 this.globalStep++;
 
                 optimizer.zero_grad();
 
-                Tensor loss= this.network.trainStep(dataProvider.getTrainData());
+                Tensor loss= this.network.trainStep(data);
 
-                torch.nn.utils.clip_grad_norm_(network.mlp.parameters(), 2.0);
+                //torch.nn.utils.clip_grad_norm_(network.mlp.parameters(), 2.0);
 
                 this.network.scaler.step(optimizer);
+
+                foreach (var param in network.mlp.getParams())
+                {
+                    Utils.printFirstNValues(param, 8, "parameter after step");
+                    Utils.printFirstNValues(param.grad()!, 8, "paramsGrad after step");
+                }
 
                 if (this.updateSchedulerEveryStep)
                 {
@@ -171,7 +177,7 @@ namespace InstantNeRF
                 }
                 float lossValue = loss.item<float>();
                 totalLoss += lossValue;
-                d.DisposeEverything();
+                //d.DisposeEverything();
             }
 
             return totalLoss;         

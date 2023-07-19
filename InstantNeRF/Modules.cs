@@ -4,6 +4,7 @@ using static InstantNeRF.TcnnWrapper;
 using InstantNeRF;
 using System.Reflection.Metadata;
 using System.Text;
+using static TorchSharp.torch.nn;
 
 namespace Modules
 {
@@ -64,17 +65,16 @@ namespace Modules
             long batchSize = x.shape[0];
             long batchSizeGranularity = Convert.ToInt64(TcnnWrapper.batchSizeGranularity());
             long paddedBatchSize = (batchSize + batchSizeGranularity - 1) / batchSizeGranularity * batchSizeGranularity;
+
             Tensor xPadded = (batchSize == paddedBatchSize) ? x : torch.nn.functional.pad(x, new long[4] { 0L, 0L, 0L, paddedBatchSize - batchSize });
 
-            this.gradFnc = new AutogradFunctions.ModuleFunction();
+            this.gradFnc = new AutogradFunctions.ModuleFunction(this.tcnnModule, this.lossScale);
+            Console.WriteLine(this.lossScale);
 
-            Tensor output = this.gradFnc.ApplyFwd(
-                this.tcnnModule,
-                xPadded.to_type(torch.float32).contiguous(),
-                param.contiguous().nan_to_num(),
-                this.lossScale);
-            output = output.slice(0L, 0L, batchSize, 1L);
-            output = output.slice(1L, 0L, outputDims, 1L);
+            Tensor output = this.gradFnc.Forward(xPadded.to_type(torch.float32).contiguous(), param.contiguous());
+            output = output.slice(0, 0, batchSize, 1);
+            output = output.slice(1, 0, outputDims, 1);
+
             return output;
         }
         public void backward(float gradScale)

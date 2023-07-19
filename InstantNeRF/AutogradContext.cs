@@ -14,7 +14,6 @@ namespace InstantNeRF
         }
         public List<Tensor> savedTensors = new List<Tensor>();
         public ModuleWrapper tcnnModule;
-        public AutogradContext? forwardCtx;
         public IntPtr nativeCtx;
         public float lossScale;
 

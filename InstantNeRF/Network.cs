@@ -31,31 +31,38 @@ namespace InstantNeRF
         }
         public Dictionary<string, Tensor> forward( Dictionary<string, Tensor> data) 
         {
-            /*
-            Console.WriteLine("-:-:- before sampling -:-:-");
 
+            Console.WriteLine("-:-:- before sampling -:-:-");
+            /*
             foreach (var key in data.Keys)
             {
                 Utils.printDims(data[key], key + " before sampling");
             }
             */
             data = this.sampler.Sample(data, this.mlp);
-            /*
+
             Console.WriteLine("-:-:- after sampling -:-:-");
+            /*
             foreach (var key in data.Keys)
             {
                 Utils.printDims(data[key], key + " after sampling");
             }
             */
             data = this.mlp.forward(data);
+            
+            Console.WriteLine("-:-:- after mlp -:-:-");
+
             /*
-            Console.WriteLine("-:-:- afetr mlp -:-:-");
             foreach (var key in data.Keys)
             {
                 Utils.printDims(data[key], key + " after mlp");
             }
             */
-            return this.renderer.forward(sampler, data);
+            data = this.renderer.forward(sampler, data);
+
+            Console.WriteLine("-:-:- after renderer -:-:-");
+
+            return data;
         }
 
         public Tensor trainStep( Dictionary<string, Tensor> data)
@@ -72,14 +79,19 @@ namespace InstantNeRF
             */
             Dictionary<string, Tensor> result = forward(data);
 
-            //data["alpha"].detach_();
-
+            data["alpha"].detach_();
             Tensor loss = Metrics.HuberLoss(result["rgb"], data["gt"]);
+
+            Console.WriteLine("------------------------");
+            Console.WriteLine("LOSS");
+            Console.WriteLine("------------------------");
+            loss.print();
 
             scaler.scale(loss).backward();
 
             renderer.backward();
             mlp.backward(scaler.getScale());
+
 
             return loss;
         }

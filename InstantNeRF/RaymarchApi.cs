@@ -135,14 +135,6 @@ namespace InstantNeRF
             Tensor rayIndices = torch.zeros(new long[] { nRaysPerBatch, 1 }, torch.int32, device);
             Tensor rayNumsteps = torch.zeros(new long[] { nRaysPerBatch, 2}, torch.int32, device);
             Tensor rayCounter = torch.zeros(new long[] { 2 }, torch.int32, device);
-            raysOrigin = raysOrigin.to(device); 
-            raysDirection = raysDirection.to(device);
-            Utils.printDims(metadata, "metadata");
-            Utils.printDims(imagesIndices, "imageIdx");
-            Utils.printDims(transforms, "transforms");
-
-            Console.WriteLine("metadata");
-            metadata[0].print();
 
             sampleRaysApi(raysOrigin.Handle,
                 raysDirection.Handle,
@@ -158,10 +150,6 @@ namespace InstantNeRF
                 rayIndices.Handle,
                 rayNumsteps.Handle,
                 rayCounter.Handle);
-
-            Utils.printDims(coordsOut, "coordsOut");
-            Utils.printFirstNValues(coordsOut, 4, "coordsOut");
-            Utils.printFirstNValues(rayIndices, 4, "rayIndices");
 
             coordsOut.detach_();
             rayIndices.detach_();

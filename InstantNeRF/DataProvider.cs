@@ -105,7 +105,6 @@ namespace InstantNeRF
                 Tensor indices = torch.randperm(rays.size(0));
                 Tensor shuffledRays = rays[indices];
                 this.raysAndRGBS = shuffledRays;
-                Utils.printDims(this.raysAndRGBS, "shuffled result");
             }
             else
             {
@@ -289,17 +288,13 @@ namespace InstantNeRF
 
         public Dictionary<string, Tensor> getTrainData() 
         {
-            
-
             if(this.currentIndex + numRays > this.raysAndRGBS.size(0))
                 this.currentIndex = 0;
 
             int startingIndex = this.currentIndex;
             int endIndex = this.currentIndex + numRays;
 
-            Utils.printDims(raysAndRGBS, "totalData");
             Tensor batch = this.raysAndRGBS.slice(0, startingIndex, endIndex, 1);
-            Utils.printDims(batch, "batch");
 
             Tensor raysO = batch.slice(1, 0, 3, 1);
             Tensor raysD = batch.slice(1, 3, 6, 1);
@@ -322,11 +317,11 @@ namespace InstantNeRF
 
             Dictionary<string, Tensor> results = new Dictionary<string, Tensor>() 
             {
-                { "raysOrigin", raysO },
-                {"raysDirection", raysD},
-                {"gt", gtColors.to(float32)},
-                {"alpha", alpha },
-                {"bgColor", bgColor.to(float32) },
+                { "raysOrigin", raysO.to(CUDA) },
+                {"raysDirection", raysD.to(CUDA)},
+                {"gt", gtColors.to(float32).to(CUDA)},
+                {"alpha", alpha.to(CUDA) },
+                {"bgColor", bgColor.to(float32).to(CUDA) },
                 {"imageIndices", indices }
             };
 

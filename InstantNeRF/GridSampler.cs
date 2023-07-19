@@ -172,11 +172,6 @@ namespace InstantNeRF
             Tensor imageIndices = data["imageIndices"].to(torch.int32).contiguous();
             data["bgColor"] = data["bgColor"].to(torch.float32).contiguous();
 
-            Utils.printDims(raysOrigin, "raysO before sampling");
-            raysOrigin[48].print();
-            Utils.printDims(raysDirection, "raysD before sampling");
-            raysDirection[48].print();
-
             Tensor[] sampledResults = RaymarchApi.sampleRays(
                 raysOrigin, 
                 raysDirection, 
@@ -196,8 +191,6 @@ namespace InstantNeRF
             Tensor rayIndices = sampledResults[1];
             Tensor rayNumsteps = sampledResults[2];
             Tensor rayCounter = sampledResults[3];
-
-            Utils.printDims(coords, "coords");
 
             if (!this.training)
             {
@@ -227,7 +220,9 @@ namespace InstantNeRF
             data.Add("rayNumsteps", rayNumsteps.detach());
             data.Add("rayNumstepsCompacted", rayNumstepsCompacted.detach());
             data.Add("positions", compactedCoords.slice(-1, 0, 3, 1));
-            data.Add("directions", compactedCoords.slice(-1, 3, compactedCoords.size(-1), 1));
+            data.Add("directions", compactedCoords.slice(-1, 4, compactedCoords.size(-1), 1));
+
+            this.iteration++;
             return data;
         }
         private void updateRayBatchsize()
@@ -259,6 +254,16 @@ namespace InstantNeRF
                 dataInfo.metadata = dataInfo.metadata.to(CUDA).contiguous();
             }
 
+        }
+
+        public void printDensity() 
+        {
+            Utils.printDims(this.densityBitfield, "densityBitfield");
+            Utils.printFirstNValues(this.densityBitfield, 3, "densityBitfield");
+            Utils.printDims(this.densityGrid, "densityGrid");
+            Utils.printFirstNValues(this.densityGrid, 3, "densityGrid");
+            Utils.printDims(this.temporaryGrid, "temporaryGrid");
+            Utils.printFirstNValues(this.temporaryGrid, 3, "temporaryGrid");
         }
     }
 

@@ -102,7 +102,7 @@ __global__ void rays_sampler_cuda(
 
     if (j == 0)
     {
-        printf("early exit \n");
+        //printf("early exit \n");
         ray_indices_out[i] = -1;
         return;
     }
@@ -114,7 +114,7 @@ __global__ void rays_sampler_cuda(
     j = 0;
 
     if (ray_idx % 100 == 0) {
-        printf("warped dir: %f, %f, %f | startt: %f\n", warped_dir.x(), warped_dir.y(), warped_dir.z(), t);
+        //printf("warped dir: %f, %f, %f | startt: %f\n", warped_dir.x(), warped_dir.y(), warped_dir.z(), t);
         //printf("warped pos: %f | warped dir: %f | warped pos: %f | warped dt: %f | warped lightdir: %f | coords stride: %i \n", warp_position(pos, aabb).x(), warped_dir.x(), warp_dt(t), light_dir_warped.x(), coords_out.stride_in_bytes);
     }
 
@@ -181,14 +181,6 @@ void rays_sampler_api(
     const unsigned int num_elements = coords_out.sizes()[0];
     const uint32_t n_rays = rays_o.sizes()[0];
     BoundingBox m_aabb = BoundingBox(Eigen::Vector3f::Constant(aabb0), Eigen::Vector3f::Constant(aabb1));
-
-    std::cout << "rays_d device: " << rays_d.device() << std::endl;
-    std::cout << "rays_o device: " << rays_o.device() << std::endl;
-    std::cout << "bitfield device: " << density_grid_bitfield.device() << std::endl;
-    std::cout << "metadata device: " << metadata.device() << std::endl;
-    std::cout << "imgidx device: " << imgs_id.device() << std::endl;
-    std::cout << "transforms device: " << xforms.device() << std::endl;
-
 
     linear_kernel(rays_sampler_cuda, 0, stream,
         n_rays, m_aabb, num_elements, (Vector3f*)rays_o_p, (Vector3f*)rays_d_p,

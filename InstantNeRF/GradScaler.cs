@@ -12,7 +12,9 @@ namespace InstantNeRF
     public class GradScaler
     {
         private readonly float growthFactor = 2.0f;
-        private readonly float initScale = (float)Math.Pow(2, 16);
+        //private readonly float initScale = (float)Math.Pow(2, 16);
+        private readonly float initScale = 128f;
+        //private readonly float initScale = 1f;
         private readonly int growthInterval = 2000;
         private readonly float backoffFactor = 0.5f;
         private float scaleFactor;

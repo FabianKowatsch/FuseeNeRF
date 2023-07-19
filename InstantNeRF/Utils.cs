@@ -113,7 +113,6 @@ namespace InstantNeRF
             result = torch.concatenate(new List<Tensor>() { result, imageIndices }, 3); // [N, H, W, 10+1, added indices]
 
             result = result.reshape(-1, 11).to(float32); // [N*H*W, 10+1]
-            printDims(result, "result");
 
             return result;
         }
@@ -267,7 +266,7 @@ namespace InstantNeRF
 
         public static void printDims(Tensor t, string name = "Tensor")
         {
-            Console.WriteLine(name + ": type: " + t.dtype + " device: " + t.device + " numel: " + t.numel() + " contigous: " + t.is_contiguous());
+            Console.WriteLine(name + ": type: " + t.dtype + " device: " + t.device + " n: " + t.numel() + " contigous: " + t.is_contiguous() + " grad: " + t.requires_grad + " leaf: " + t.is_leaf);
             for (int i = 0; i < t.shape.Length; i++)
             {
                 Console.WriteLine(name + " : " + i + " | " + t.shape[i]);
