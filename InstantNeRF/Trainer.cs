@@ -31,7 +31,7 @@ namespace InstantNeRF
 
         public Trainer(
             string name,
-            TorchSharp.Modules.Adam optimizerAdam,
+            Adam optimizerAdam,
             Network network,
             int evalEveryNEpochs = 50,
             bool updateSchedulerEveryStep = true,
@@ -55,10 +55,7 @@ namespace InstantNeRF
             {
                 this.loadCheckpoint();
             }
-
-
         }
-
         public (Tensor groundTruth, Tensor predictedRgb, Tensor loss) evalStep(Dictionary<string, Tensor> data)
         {
             Tensor raysOrigin = data["raysOrigin"].to_type(torch.half);
@@ -101,7 +98,7 @@ namespace InstantNeRF
             return predictedRGB;
         }
 
-        public Tensor testInference(Tensor pose, Tensor intrinsics, int height, int width, bool depth = false, int downScale = 1)
+        public Tensor testInference(Tensor pose, Tensor intrinsics, int height, int width, int downScale = 1)
         {
             int renderWidth = width * downScale;
             int renderHeight = height * downScale;
@@ -109,39 +106,23 @@ namespace InstantNeRF
 
             Tensor image;
 
-            using(var d = torch.NewDisposeScope())
+            using (var d = torch.NewDisposeScope())
             {
                 using (torch.no_grad())
                 {
-                    (Tensor raysO, Tensor raysDir) = Utils.getRays(pose, intrinsics, renderHeight, renderWidth, torch.empty(0));
-                    Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "rayOrigins", raysO }, { "rayDirections", raysDir } };
+                    (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(renderWidth, renderHeight, intrinsics, pose);
+                    Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "rayOrigins", raysO }, { "rayDirections", raysDir }, { "pose", pose } };
 
-                    if (depth)
-                    {
-                        image = testStep(data, Convert.ToInt64(height), Convert.ToInt64(width));
-                    }
-                    else
-                    {
-                        image = testStep(data, Convert.ToInt64(height), Convert.ToInt64(width));
-                    }
-                }
+                    image = testStep(data, Convert.ToInt64(height), Convert.ToInt64(width));
 
-                if (downScale != 1)
-                {
-                    if (depth)
+                    if (downScale != 1)
                     {
-                        image = torch.nn.functional.interpolate(image.permute(0, 3, 1, 2), size: new long[] { height, width }, mode: InterpolationMode.Nearest).permute(0, 2, 3, 1).contiguous();
-                    }
-                    else
-                    {
+
                         image = torch.nn.functional.interpolate(image.unsqueeze(1), size: new long[] { height, width }, mode: InterpolationMode.Nearest).squeeze(1);
                     }
+                    return Utils.linearToSrgb(image[0].detach());
                 }
-                d.DisposeEverything();
             }
-
-
-            return Utils.linearToSrgb(image[0].detach());
         }
 
         public float trainStepRT(int step, DataProvider dataProvider)
@@ -155,7 +136,7 @@ namespace InstantNeRF
 
                 optimizer.zero_grad();
 
-                Tensor loss= this.network.trainStep(data);
+                Tensor loss = this.network.trainStep(data);
 
                 //torch.nn.utils.clip_grad_norm_(network.mlp.parameters(), 2.0);
 
@@ -178,7 +159,7 @@ namespace InstantNeRF
                 float lossValue = loss.item<float>();
                 totalLoss += lossValue;
             }
-            return totalLoss;         
+            return totalLoss;
         }
 
 

@@ -159,20 +159,29 @@ namespace InstantNeRF
         {
             if (dataInfo == null) { throw new Exception("no datainfo provided."); }
 
+            Tensor transforms;
+            Tensor imageIndices;
+            Tensor raysOrigin = data["raysOrigin"].contiguous();
+            Tensor raysDirection = data["raysDirection"].contiguous();
+            data["bgColor"] = data["bgColor"].to(torch.float32).contiguous();
+
             prepareData();
+
             if (this.training)
             {
                 if(this.iteration % this.updateGridFrequency == 0)
                 {
                     updateDensityGrid(mlp);
                 }
+                imageIndices = data["imageIndices"].to(torch.int32).contiguous();
+                transforms = dataInfo.transforms;
+            }
+            else
+            {
+                transforms = data["pose"].unsqueeze(0);
+                imageIndices = torch.zeros(raysOrigin.size(0));
             }
 
-            Tensor raysOrigin = data["raysOrigin"].contiguous();
-            Tensor raysDirection = data["raysDirection"].contiguous();
-
-            Tensor imageIndices = data["imageIndices"].to(torch.int32).contiguous();
-            data["bgColor"] = data["bgColor"].to(torch.float32).contiguous();
 
             Tensor[] sampledResults = RaymarchApi.sampleRays(
                 raysOrigin, 
@@ -180,7 +189,7 @@ namespace InstantNeRF
                 densityBitfield, 
                 dataInfo.metadata, 
                 imageIndices, 
-                dataInfo.transforms, 
+                transforms, 
                 dataInfo.aabbMin, 
                 dataInfo.aabbMax, 
                 NEAR,

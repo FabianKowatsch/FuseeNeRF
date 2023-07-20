@@ -249,7 +249,7 @@ namespace FuseeApp
 
             Tensor intrinsics = torch.from_array(new float[4] { _focalX, _focalY, centerX, centerY }, device: CUDA);
 
-            Tensor image = _trainer.testInference(torch.from_array(poseConverted, device: CUDA), intrinsics, height: this.Height, width: this.Width, false, 1);
+            Tensor image = _trainer.testInference(torch.from_array(poseConverted, device: CUDA), intrinsics, height: this.Height, width: this.Width, 1);
             image = ByteTensor(image);
             image.to(CPU);
             byte[] buffer = image.data<byte>().ToArray();

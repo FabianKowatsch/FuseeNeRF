@@ -97,7 +97,13 @@ namespace InstantNeRF
         }
         public Tensor testStep(Dictionary<string, Tensor> data)
         {
-            throw new NotImplementedException();
+            sampler.eval();
+            mlp.eval();
+            renderer.eval();
+
+            Dictionary<string, Tensor> result = this.batchifyForward(data);
+
+            return data["rgb"];
         }
         public Dictionary<string, Tensor> batchifyForward( Dictionary<string, Tensor> data) //smaller batches to avoid memory problems
         {
