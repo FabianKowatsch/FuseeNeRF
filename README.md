@@ -4,27 +4,30 @@ This Project aims to provide an executable application for rendering Neural Radi
 
 ## Usage
 
-Currently, changes to the parameters like the dataset are hardcoded and need to be made by editing FuseeNeRF.cs. A User Interface and a .json config file will be added in the future
-
 - Open the .sln file in MS Visual Studio
-- specify the launch parameters in FuseeNeRF.cs like this
+- specify the launch parameters in Config/config.json
 - Instant-NGPs dataset and the original NeRFs datasets are supported, although most testing has been done on the synthetic lego dataset
 
-```csharp
-    string pathToData = @"C:\downloads\nerf_synthetic\nerf_synthetic\lego";
-
-    Device device = cuda.is_available() ? CUDA : CPU;
-
-    DataProvider trainData = new DataProvider(device, pathToData, "transforms_train", "train", downScale: 2.0f, radiusScale: 1.0f, offset: new float[] { 0f, 0f, 0f }, bound: 1.0f, numRays: 2048, preload: false, datasetType: "synthetic");
-    DataProvider evalData = new DataProvider(device, pathToData, "transforms_val", "val", downScale: 2.0f, radiusScale: 1.0f, offset: new float[] { 0f, 0f, 0f }, bound: 1.0f, numRays: 2048, preload: false, datasetType: "synthetic");
-
-    NerfRenderer renderer = new NerfRenderer("NerfRenderer");
-    
-    TorchSharp.Modules.Adam optimizer = optim.Adam(renderer.mlp.getParams(), lr: 0.01, beta1: 0.9, beta2: 0.99, eps: 1e-15);
-
-    Loss<Tensor, Tensor, Tensor> criterion = torch.nn.MSELoss(reduction: nn.Reduction.None);
-
-    Trainer trainer = new Trainer("NGP001", renderer, optimizer, criterion, 1, subdirectoryName: "workspace_lego_synthetic");
+```json
+    {
+    "dataPath": "D:\\path\\to\\data folder\\containing\\transforms.json file",
+    "trainDataFilename": "transforms_train",
+    "evalDataFilename": "transforms_val",
+    "datasetType": "synthetic",
+    "aabbMin": 0.0,
+    "aabbMax": 1.0,
+    "aabbScale":  0.33,
+    "offset": [ 0.5, 0.5, 0.5 ],
+    "bgColor": [1.0, 1.0, 1.0],
+    "imageDownscale": 2.0,
+    "nRays": 2048,
+    "learningRate": 0.01,
+    "epsilon": 1e-15,
+    "beta1": 0.9,
+    "beta2": 0.99,
+    "weightDecay": 0.95,
+    "gradScale":  128.0,
+    }
 ```
 - rebuild the Solution or just the FuseeNeRF project for *Release x64* and launch \FuseeNeRF\Build\x64\Release\net7.0-windows\FuseeApp.exe
 
@@ -64,17 +67,14 @@ Currently no results can be seen:
     - Gradient Scaler: on and off
     - Dataset: lego and fox
     - Mixed Precision training (float16 & float32): on and off
-- On the dev branch, raymarching causes the output tensors memory to become inaccessable by CUDA.
-    - this is most likely caused by the CUDA-Kernel ending early due to an error caused by wrong ray calculation, as most rays cant even reach the Bounding Box based on their directions and origins
-    - after the [while loop](https://github.com/FabianKowatsch/FuseeNeRF/blob/dev/RaymarchApi/ray_sampler.cu#L60), all output tensors have corrupted underlying memory
-    - the directions and origins of the rays are calculated by using the camera transforms extracted from the colmap .json files ([reading  json data](https://github.com/FabianKowatsch/FuseeNeRF/blob/dev/InstantNeRF/DataProvider.cs#L160))
-    - the camera poses are then transformed similarly to the [transformation in instant-ngp](https://github.com/NVlabs/instant-ngp/blob/090aed613499ac2dbba3c2cede24befa248ece8a/include/neural-graphics-primitives/nerf_loader.h#L101): [c# version](https://github.com/FabianKowatsch/FuseeNeRF/blob/5a1eca87b29153474a8d295a6101a32eecd574c4/InstantNeRF/Utils.cs#L39C34-L39C34) ([transformation in xrnerf](https://github.com/openxrlab/xrnerf/blob/f8020561b91b27848bf893b34c69a3d17de151c5/xrnerf/datasets/utils/hashnerf.py), [transformation in torch-ngp](https://github.com/ashawkey/torch-ngp/blob/b6e080468925f0bb44827b4f8f0ed08291dcf8a9/nerf/provider.py#L19))
-    - the direction of the rays are then calculated with these transformed camera poses [here](https://github.com/FabianKowatsch/FuseeNeRF/blob/5a1eca87b29153474a8d295a6101a32eecd574c4/InstantNeRF/Utils.cs#L39C34-L39C34) ([reference: xrnerf](https://github.com/openxrlab/xrnerf/blob/f8020561b91b27848bf893b34c69a3d17de151c5/xrnerf/datasets/load_data/get_rays.py#L72))
+- On the dev branch, all density related Tensors become invalid when using a DisposeScope for training to avoid memory leaks
+    - ...although they are created outside of the scope and not reassigned, their values are only adjusted by accessing the underlying storage in a CUDA Kernel
 
 ### Future Goals
 
-- Fixing NaN Error
-- Configuration
+- Configuration(done)
+- Fixing NaN Error(done)
+- Fixing Rendering
 - User Interface
 
 ## References
