@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices.Marshalling;
 using System.Text;
 using System.Threading.Tasks;
 using TorchSharp;
@@ -12,20 +13,17 @@ namespace InstantNeRF
     public class GradScaler
     {
         private readonly float growthFactor = 2.0f;
-        //private readonly float initScale = (float)Math.Pow(2, 16);
-        private readonly float initScale = 128f;
-        //private readonly float initScale = 1f;
         private readonly int growthInterval = 2000;
         private readonly float backoffFactor = 0.5f;
         private float scaleFactor;
         private bool wasNaN;
         private int growthTracker;
 
-        public GradScaler()
+        public GradScaler(float initialScale)
         {
             wasNaN = false;
             growthTracker = 0;
-            scaleFactor = initScale;
+            scaleFactor = initialScale;
         }
 
         public Tensor scale(Tensor x)
@@ -35,7 +33,6 @@ namespace InstantNeRF
 
         public void step(Adam optimizer)
         {
-            
 
             var paramsArray = optimizer.parameters().ToArray();
 

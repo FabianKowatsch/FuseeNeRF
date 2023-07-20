@@ -11,6 +11,11 @@
   "imageDownscale": 2.0,
   "nRays": 2048,
   "learningRate": 0.01,
+  "epsilon": 1e-15,
+  "beta1": 0.9,
+  "beta2": 0.99,
+  "weightDecay": 0.95,
+  "gradScale":  128.0,
   "posEncodingCfg": {
     "otype": "HashGrid",
     "n_levels": 8,

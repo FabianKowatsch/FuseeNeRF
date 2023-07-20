@@ -16,7 +16,7 @@ namespace InstantNeRF
         private VolumeRenderer renderer;
         private readonly int wantedBatchSize = 1024;
         private readonly int chunkSIze = 128;
-        public Network(GridSampler sampler) : base("NerfNetwork") {
+        public Network(GridSampler sampler, float gradScale) : base("NerfNetwork") {
             this.sampler = sampler;
 
             float halfBound = 1.0f;
@@ -27,7 +27,7 @@ namespace InstantNeRF
             }
             this.mlp = new MLP(halfBound);
             this.renderer = new VolumeRenderer(new float[] {0f, 0f, 0f});
-            this.scaler = new GradScaler();
+            this.scaler = new GradScaler(gradScale);
         }
         public Dictionary<string, Tensor> forward( Dictionary<string, Tensor> data) 
         {

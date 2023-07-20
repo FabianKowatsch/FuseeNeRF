@@ -157,10 +157,10 @@ namespace FuseeApp
                 GridSampler sampler = new GridSampler(trainData);
                 Console.WriteLine("created gridsampler");
 
-                Network network = new Network(sampler);
+                Network network = new Network(sampler, config.gradScale);
                 Console.WriteLine("created net");
 
-                TorchSharp.Modules.Adam optimizer = optim.Adam(network.mlp.getParams(), lr: config.learningRate, beta1: 0.9, beta2: 0.99, eps: 1e-15);
+                TorchSharp.Modules.Adam optimizer = optim.Adam(network.mlp.getParams(), lr: config.learningRate, beta1: config.beta1, beta2: config.beta2, eps: config.epsilon, weight_decay: config.weightDecay);
                 Console.WriteLine("created optimizer");
 
                 Loss<Tensor, Tensor, Tensor> criterion = torch.nn.MSELoss(reduction: nn.Reduction.None);

@@ -27,6 +27,11 @@ namespace InstantNeRF
         public float imageDownscale;
         public int nRays;
         public float learningRate;
+        public float epsilon;
+        public float beta1;
+        public float beta2;
+        public float weightDecay;
+        public float gradScale;
         public float[] bgColor;
         private readonly string configPath = "../../../../Config/config.json";
 
@@ -116,7 +121,7 @@ namespace InstantNeRF
                 {
                     this.aabbScale = aabbScaleElement.GetSingle();
                 }
-                else throw new Exception("couldnt find aabbScaleh");
+                else throw new Exception("couldnt find aabbScale");
 
                 if (json.RootElement.TryGetProperty("imageDownscale", out JsonElement imageDownscaleElement))
                 {
@@ -135,6 +140,36 @@ namespace InstantNeRF
                     this.learningRate= learningRateElement.GetSingle();
                 }
                 else throw new Exception("couldnt find learningRate");
+
+                if (json.RootElement.TryGetProperty("epsilon", out JsonElement epsilonElement))
+                {
+                    this.epsilon = epsilonElement.GetSingle();
+                }
+                else throw new Exception("couldnt find epsilon");
+
+                if (json.RootElement.TryGetProperty("beta1", out JsonElement beta1Element))
+                {
+                    this.beta1 = beta1Element.GetSingle();
+                }
+                else throw new Exception("couldnt find beta1");
+
+                if (json.RootElement.TryGetProperty("beta2", out JsonElement beta2Element))
+                {
+                    this.beta2 = beta2Element.GetSingle();
+                }
+                else throw new Exception("couldnt find beta2");
+
+                if (json.RootElement.TryGetProperty("weightDecay", out JsonElement weightDecayElement))
+                {
+                    this.weightDecay = weightDecayElement.GetSingle();
+                }
+                else throw new Exception("couldnt find weightDecay");
+
+                if (json.RootElement.TryGetProperty("gradScale", out JsonElement gradScaleElement))
+                {
+                    this.gradScale = weightDecayElement.GetSingle();
+                }
+                else throw new Exception("couldnt find weightDecay");
 
                 if (json.RootElement.TryGetProperty("bgColor", out JsonElement bgColorElement))
                 {
