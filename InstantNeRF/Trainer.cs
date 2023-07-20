@@ -177,9 +177,7 @@ namespace InstantNeRF
                 }
                 float lossValue = loss.item<float>();
                 totalLoss += lossValue;
-                //d.DisposeEverything();
             }
-
             return totalLoss;         
         }
 

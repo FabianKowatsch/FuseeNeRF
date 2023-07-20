@@ -81,38 +81,31 @@ namespace InstantNeRF
             return (densityGridPositions, densityGridIndices);
         }
 
-        public static Tensor markUntrainedGrid(Tensor focalLengths, Tensor transforms, int nElements, int nImages, int width, int height)
+        public static void markUntrainedGrid(Tensor densityGrid, Tensor focalLengths, Tensor transforms, int nElements, int nImages, int width, int height)
         {
             Device device = focalLengths.device;
-            Tensor densityGrid = torch.empty(new long[] { nElements }, torch.float32, device);
+            densityGrid.to(device);
             markUntrainedGridApi(focalLengths.Handle, transforms.Handle, nElements, nImages, width, height, densityGrid.Handle);
-            return densityGrid;
         }
 
-        public static Tensor splatGridSamplesNerfMaxNearestNeighbour(Tensor densityOutput, Tensor indices, int paddedOutputWidth, int nSamples, Tensor temporaryGrid)
+        public static void splatGridSamplesNerfMaxNearestNeighbour(Tensor densityOutput, Tensor indices, int paddedOutputWidth, int nSamples, Tensor temporaryGrid)
         {
-            temporaryGrid = temporaryGrid.to(densityOutput.device);
+            temporaryGrid.to(densityOutput.device);
             temporaryGrid.zero_();
             splatGridSamplesNerfMaxNearestNeighbourApi(densityOutput.Handle, indices.Handle, paddedOutputWidth, nSamples, temporaryGrid.Handle);
-
-            return temporaryGrid;
         }
 
-        public static Tensor sampleDensityGridEma(Tensor temporaryGrid, int nElements, float decay, Tensor densityGrid)
+        public static void sampleDensityGridEma(Tensor temporaryGrid, int nElements, float decay, Tensor densityGrid)
         {
             emaGridSamplesNerfApi(temporaryGrid.Handle, nElements, decay, densityGrid.Handle);
-
-            return densityGrid;
         }
 
-        public static (Tensor densityBitfield, Tensor densityMean) updateBitfield(Tensor densityGrid, Tensor densityMean, Tensor densityBitfield)
+        public static void updateBitfield(Tensor densityGrid, Tensor densityMean, Tensor densityBitfield)
         {
-            densityBitfield = densityBitfield.to(densityGrid.device);
-            densityMean = densityMean.to(densityGrid.device);
+            densityBitfield.to(densityGrid.device);
+            densityMean.to(densityGrid.device);
             densityMean.zero_();
             updateBitfieldApi(densityGrid.Handle, densityMean.Handle, densityBitfield.Handle);
-
-            return (densityBitfield, densityMean);
         }
 
         public static Tensor[] sampleRays(

@@ -24,10 +24,10 @@ namespace InstantNeRF
         private Tensor measuredBatchSize;
         private int iteration;
         private int emaStep;
-        private Tensor temporaryGrid;
+        public Tensor temporaryGrid;
         public Tensor densityBitfield;
         public Tensor densityMean;
-        private Tensor densityGrid;
+        public Tensor densityGrid;
         public DataInfo? dataInfo;
         private readonly int UPDATE_BLOCK_SIZE = 5000000;
         private readonly float CONE_ANGLE_CONST = 0.00390625f;
@@ -59,9 +59,11 @@ namespace InstantNeRF
             int roundedUpResult = (int)Math.Ceiling(result);  
             this.densityMean = torch.zeros(roundedUpResult, torch.float32);
             this.densityBitfield = torch.zeros(nElementsBitfield, torch.uint8);
+            this.densityGrid = torch.zeros(nElementsDensity, torch.float32);
             this.register_buffer("densityBitfield", densityBitfield);
-            this.densityGrid = torch.empty(nElementsDensity, torch.float32);
-
+            this.register_buffer("densityMean", densityMean);
+            this.register_buffer("densityGrid", densityGrid);
+            this.register_buffer("temoraryGrid", temporaryGrid);
             this.measuredBatchSize = torch.zeros(1, torch.int32);
 
             this.iteration = 0;
@@ -106,7 +108,7 @@ namespace InstantNeRF
 
                 if (this.iteration == 0)
                 {
-                    this.densityGrid = RaymarchApi.markUntrainedGrid(dataInfo.focalLengths, dataInfo.transforms, nElementsDensity, dataInfo.nImages, dataInfo.width, dataInfo.height);
+                    RaymarchApi.markUntrainedGrid(this.densityGrid, dataInfo.focalLengths, dataInfo.transforms, nElementsDensity, dataInfo.nImages, dataInfo.width, dataInfo.height);
                 }
                 (Tensor positionsUniform, Tensor indicesUniform) = RaymarchApi.generateGridSamples(
                     densityGrid,
@@ -140,14 +142,14 @@ namespace InstantNeRF
                     }
                     density = torch.cat(results, 0);
                 }
-                this.temporaryGrid = RaymarchApi.splatGridSamplesNerfMaxNearestNeighbour(density, indices, PADDED_OUTPUT_WIDTH, totalSamples, temporaryGrid);
+                RaymarchApi.splatGridSamplesNerfMaxNearestNeighbour(density, indices, PADDED_OUTPUT_WIDTH, totalSamples, temporaryGrid);
 
-                this.densityGrid = RaymarchApi.sampleDensityGridEma(temporaryGrid, nElementsDensity, EMA_DECAY, densityGrid);
+                RaymarchApi.sampleDensityGridEma(temporaryGrid, nElementsDensity, EMA_DECAY, densityGrid);
 
                 this.densityGrid.detach_();
                 this.emaStep++;
 
-                (this.densityBitfield, this.densityMean) = RaymarchApi.updateBitfield(densityGrid, densityMean, densityBitfield);
+                RaymarchApi.updateBitfield(densityGrid, densityMean, densityBitfield);
             }
 
             
@@ -222,6 +224,8 @@ namespace InstantNeRF
             data.Add("positions", compactedCoords.slice(-1, 0, 3, 1));
             data.Add("directions", compactedCoords.slice(-1, 4, compactedCoords.size(-1), 1));
 
+            printDensity();
+
             this.iteration++;
             return data;
         }
@@ -230,19 +234,23 @@ namespace InstantNeRF
             if(iteration % updateGridFrequency == (updateGridFrequency - 1))
             {
                 int measuredBatchSize = Math.Max(this.measuredBatchSize.item<int>() / 16, 1);
-                int RaysPerBatch = nRays * targetBatchSize / measuredBatchSize;
+                int measuredRaysPerBatch = nRays * targetBatchSize / measuredBatchSize;
 
-                double result = (double)nRays / 128;
+                double result = (double)measuredRaysPerBatch / 128;
                 int roundedUpResult = (int)Math.Ceiling(result);
 
-                this.nRays = Math.Min(roundedUpResult, targetBatchSize);
+                this.nRays = Math.Min(roundedUpResult * 128, targetBatchSize);
                 this.measuredBatchSize.zero_();
             }
         }
         private void prepareData()
         {
             if(dataInfo == null) {  return; }
-            if(this.temporaryGrid.device != CUDA)
+            Console.WriteLine("tmp invalid:" + temporaryGrid.IsInvalid);
+            Console.WriteLine("grid invalid:" + densityGrid.IsInvalid);
+            Console.WriteLine("bitfield invalid:" + densityBitfield.IsInvalid);
+            Console.WriteLine("mean invalid:" + densityMean.IsInvalid);
+            if (this.temporaryGrid.device != CUDA)
             {
                 this.densityBitfield = this.densityBitfield.to(CUDA).contiguous();
                 this.densityGrid = this.densityGrid.to(CUDA).contiguous();
