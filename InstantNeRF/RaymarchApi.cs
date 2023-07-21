@@ -74,7 +74,7 @@ namespace InstantNeRF
         public static (Tensor densityGridPositions, Tensor densityGridIndices) generateGridSamples(Tensor densityGrid, int emaStep, int nElements, int maxCascade, float densityThreshold, float aabb0, float aabb1)
         {
             Device device = densityGrid.device;
-            Tensor densityGridPositions = torch.empty(new long[] {nElements, 3}, torch.float32, device);
+            Tensor densityGridPositions = torch.empty(new long[] { nElements, 3 }, torch.float32, device);
             Tensor densityGridIndices = torch.empty(new long[] { nElements }, torch.int32, device);
             generateGridSamplesApi(densityGrid.Handle, emaStep, nElements, maxCascade, densityThreshold, aabb0, aabb1, densityGridPositions.Handle, densityGridIndices.Handle);
 
@@ -124,9 +124,9 @@ namespace InstantNeRF
             Device device = transforms.device;
 
             long nRaysPerBatch = raysOrigin.size(0);
-            Tensor coordsOut = torch.zeros(new long[] {nElements, 7}, torch.float32, device);
+            Tensor coordsOut = torch.zeros(new long[] { nElements, 7 }, torch.float32, device);
             Tensor rayIndices = torch.zeros(new long[] { nRaysPerBatch, 1 }, torch.int32, device);
-            Tensor rayNumsteps = torch.zeros(new long[] { nRaysPerBatch, 2}, torch.int32, device);
+            Tensor rayNumsteps = torch.zeros(new long[] { nRaysPerBatch, 2 }, torch.int32, device);
             Tensor rayCounter = torch.zeros(new long[] { 2 }, torch.int32, device);
 
             sampleRaysApi(raysOrigin.Handle,
@@ -179,13 +179,13 @@ namespace InstantNeRF
             Tensor bgColorCpu = torch.tensor(bgColor, torch.float32).cpu();
 
             compactedCoordsApi(output.Handle,
-                positionsIn.Handle, 
+                positionsIn.Handle,
                 rayNumsteps.Handle,
                 bgColorCpu.Handle,
-                colorActivation, 
+                colorActivation,
                 densityActivation,
                 aabb0,
-                aabb1, 
+                aabb1,
                 positionsOut.Handle,
                 rayNumstepsCompacted.Handle,
                 rayCounterCompacted.Handle,
@@ -194,7 +194,7 @@ namespace InstantNeRF
             return new Tensor[] { positionsOut, rayNumstepsCompacted, rayCounterCompacted };
         }
 
-     
+
 
 
     }

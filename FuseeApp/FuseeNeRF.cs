@@ -39,7 +39,7 @@ namespace FuseeApp
         private float _focalY;
         private Texture texture;
         private int currentStep = 0;
-        private readonly int stepsToTrain = 32;
+        private readonly int stepsToTrain = 5;
         private DataProvider _dataProvider;
 
         private Transform _camPivotTransform;
@@ -157,7 +157,7 @@ namespace FuseeApp
                 GridSampler sampler = new GridSampler(trainData);
                 Console.WriteLine("created gridsampler");
 
-                Network network = new Network(sampler, config.gradScale);
+                Network network = new Network(sampler, config.gradScale, config.bgColor);
                 Console.WriteLine("created net");
 
                 TorchSharp.Modules.Adam optimizer = optim.Adam(network.mlp.getParams(), lr: config.learningRate, beta1: config.beta1, beta2: config.beta2, eps: config.epsilon, weight_decay: config.weightDecay);
@@ -223,7 +223,7 @@ namespace FuseeApp
             if(currentStep < stepsToTrain)
             {
                 TrainStep();
-                //InferenceStep();
+                InferenceStep();
             }
 
         }

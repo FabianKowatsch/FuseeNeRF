@@ -110,6 +110,12 @@ namespace InstantNeRF
             {
                 using (torch.no_grad())
                 {
+                    Console.WriteLine("intrinsics");
+                    intrinsics.print();
+                    Console.WriteLine("pose");
+                    pose.print();
+                    Console.WriteLine("width:" + renderWidth);
+                    Console.WriteLine("height:" + renderHeight);
                     (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(renderWidth, renderHeight, intrinsics, pose);
                     Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "rayOrigins", raysO }, { "rayDirections", raysDir }, { "pose", pose } };
 
@@ -141,13 +147,11 @@ namespace InstantNeRF
                 //torch.nn.utils.clip_grad_norm_(network.mlp.parameters(), 2.0);
 
                 this.network.scaler.step(optimizer);
-
+                Console.WriteLine("----PARAMS----");
                 foreach (var param in network.mlp.getParams())
                 {
-                    Utils.printFirstNValues(param, 8, "parameter after step");
-                    Utils.printFirstNValues(param.grad()!, 8, "paramsGrad after step");
+                    param.print();
                 }
-
                 if (this.updateSchedulerEveryStep)
                 {
                     scheduler.step();
@@ -158,6 +162,14 @@ namespace InstantNeRF
                 }
                 float lossValue = loss.item<float>();
                 totalLoss += lossValue;
+
+                Console.WriteLine("__________________________________");
+                Console.WriteLine("STEP: " + this.globalStep);
+                Console.WriteLine("__________________________________");
+                Console.WriteLine("disposables: " + d.DisposablesCount);
+                d.DisposeEverything();
+                Console.WriteLine("disposables: " + d.DisposablesCount);
+
             }
             return totalLoss;
         }

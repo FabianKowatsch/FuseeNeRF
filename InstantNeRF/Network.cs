@@ -16,7 +16,7 @@ namespace InstantNeRF
         private VolumeRenderer renderer;
         private readonly int wantedBatchSize = 1024;
         private readonly int chunkSIze = 128;
-        public Network(GridSampler sampler, float gradScale) : base("NerfNetwork") {
+        public Network(GridSampler sampler, float gradScale, float[] bgColor) : base("NerfNetwork") {
             this.sampler = sampler;
 
             float halfBound = 1.0f;
@@ -26,7 +26,7 @@ namespace InstantNeRF
                 halfBound = (sampler.dataInfo.aabbMax - sampler.dataInfo.aabbMin) / 2;
             }
             this.mlp = new MLP(halfBound);
-            this.renderer = new VolumeRenderer(new float[] {0f, 0f, 0f});
+            this.renderer = new VolumeRenderer(bgColor);
             this.scaler = new GradScaler(gradScale);
         }
         public Dictionary<string, Tensor> forward( Dictionary<string, Tensor> data) 
@@ -42,22 +42,11 @@ namespace InstantNeRF
             data = this.sampler.Sample(data, this.mlp);
 
             Console.WriteLine("-:-:- after sampling -:-:-");
-            /*
-            foreach (var key in data.Keys)
-            {
-                Utils.printDims(data[key], key + " after sampling");
-            }
-            */
+
             data = this.mlp.forward(data);
             
             Console.WriteLine("-:-:- after mlp -:-:-");
 
-            /*
-            foreach (var key in data.Keys)
-            {
-                Utils.printDims(data[key], key + " after mlp");
-            }
-            */
             data = this.renderer.forward(sampler, data);
 
             Console.WriteLine("-:-:- after renderer -:-:-");
@@ -71,12 +60,6 @@ namespace InstantNeRF
             mlp.train();
             renderer.train();
             
-            /*
-            foreach ( var key in data.Keys ) 
-            {
-                data[key] = unfoldData(data[key]);
-            }
-            */
             Dictionary<string, Tensor> result = forward(data);
 
             data["alpha"].detach_();
@@ -88,7 +71,6 @@ namespace InstantNeRF
             loss.print();
 
             scaler.scale(loss).backward();
-
             renderer.backward();
             mlp.backward(scaler.getScale());
 
@@ -101,9 +83,9 @@ namespace InstantNeRF
             mlp.eval();
             renderer.eval();
 
-            Dictionary<string, Tensor> result = this.batchifyForward(data);
+            Dictionary<string, Tensor> result = this.forward(data);
 
-            return data["rgb"];
+            return result["rgb"];
         }
         public Dictionary<string, Tensor> batchifyForward( Dictionary<string, Tensor> data) //smaller batches to avoid memory problems
         {

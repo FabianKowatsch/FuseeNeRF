@@ -21,7 +21,6 @@ namespace InstantNeRF
         public int densityActivation;
         public int rgbActivation;
         private int targetBatchSize;
-        private Tensor measuredBatchSize;
         private int iteration;
         private int emaStep;
         public Tensor temporaryGrid;
@@ -51,20 +50,19 @@ namespace InstantNeRF
             this.nElementsBitfield = GRIDSIZE * GRIDSIZE * GRIDSIZE;
             this.nElementsDensity = nElementsBitfield * CASCADES;
             this.sizeIncludingMips = nElementsBitfield * CASCADES / 8;
-            
+
             // Density Grid and Bitfield
-            this.temporaryGrid = torch.zeros(nElementsDensity, torch.float32);
+            this.temporaryGrid = torch.zeros(nElementsDensity, torch.float32, CUDA).contiguous();
 
             double result = (double)nElementsBitfield / N_THREADS_LINEAR;
-            int roundedUpResult = (int)Math.Ceiling(result);  
-            this.densityMean = torch.zeros(roundedUpResult, torch.float32);
-            this.densityBitfield = torch.zeros(nElementsBitfield, torch.uint8);
-            this.densityGrid = torch.zeros(nElementsDensity, torch.float32);
+            int roundedUpResult = (int)Math.Ceiling(result);
+            this.densityMean = torch.zeros(roundedUpResult, torch.float32, CUDA).contiguous();
+            this.densityBitfield = torch.zeros(nElementsBitfield, torch.uint8, CUDA).contiguous();
+            this.densityGrid = torch.zeros(nElementsDensity, torch.float32, CUDA).contiguous();
             this.register_buffer("densityBitfield", densityBitfield);
             this.register_buffer("densityMean", densityMean);
             this.register_buffer("densityGrid", densityGrid);
             this.register_buffer("temoraryGrid", temporaryGrid);
-            this.measuredBatchSize = torch.zeros(1, torch.int32);
 
             this.iteration = 0;
             this.emaStep = 0;
@@ -73,12 +71,19 @@ namespace InstantNeRF
             Tensor focalLengths = dataProvider.focals;
             Tensor metaData = torch.from_array(new float[] { 0f, 0f, 0f, 0f, 0.5f, 0.5f, focalLengths[0].item<float>(), focalLengths[1].item<float>(), 0f, 0f, 0f });
             focalLengths = focalLengths.unsqueeze(0).repeat(nImages, 1);
-            this.dataInfo = new DataInfo(dataProvider.width, dataProvider.height, dataProvider.poses, focalLengths, dataProvider.aabbScale, dataProvider.aabbMin, dataProvider.aabbMax, metaData);
+            this.dataInfo = new DataInfo(dataProvider.width,
+                dataProvider.height,
+                dataProvider.poses.to(CUDA).contiguous(),
+                focalLengths.to(CUDA).contiguous(),
+                dataProvider.aabbScale,
+                dataProvider.aabbMin,
+                dataProvider.aabbMax,
+                metaData.to(CUDA).contiguous());
         }
 
-        public DataInfo getData() 
+        public DataInfo getData()
         {
-            if(this.dataInfo == null)
+            if (this.dataInfo == null)
             {
                 throw new Exception("no datainfo available");
             }
@@ -90,19 +95,19 @@ namespace InstantNeRF
             int nCascades = CASCADES + 1;
             int M = nElementsBitfield * nCascades;
 
-            if(this.iteration < 256)
+            if (this.iteration < 256)
             {
                 updateDensityGridBasedOnIteration(M, 0, mlp);
             }
             else
             {
-                updateDensityGridBasedOnIteration(M/4, M/4, mlp);
+                updateDensityGridBasedOnIteration(M / 4, M / 4, mlp);
             }
         }
 
         private void updateDensityGridBasedOnIteration(int nUniformSamples, int nNonUniformSamples, MLP mlp)
         {
-            if(this.dataInfo != null)
+            if (this.dataInfo != null)
             {
                 int totalSamples = nUniformSamples + nNonUniformSamples;
 
@@ -152,7 +157,7 @@ namespace InstantNeRF
                 RaymarchApi.updateBitfield(densityGrid, densityMean, densityBitfield);
             }
 
-            
+
         }
 
         public Dictionary<string, Tensor> Sample(Dictionary<string, Tensor> data, MLP mlp)
@@ -165,11 +170,10 @@ namespace InstantNeRF
             Tensor raysDirection = data["raysDirection"].contiguous();
             data["bgColor"] = data["bgColor"].to(torch.float32).contiguous();
 
-            prepareData();
 
             if (this.training)
             {
-                if(this.iteration % this.updateGridFrequency == 0)
+                if (this.iteration % this.updateGridFrequency == 0)
                 {
                     updateDensityGrid(mlp);
                 }
@@ -184,14 +188,14 @@ namespace InstantNeRF
 
 
             Tensor[] sampledResults = RaymarchApi.sampleRays(
-                raysOrigin, 
-                raysDirection, 
-                densityBitfield, 
-                dataInfo.metadata, 
-                imageIndices, 
-                transforms, 
-                dataInfo.aabbMin, 
-                dataInfo.aabbMax, 
+                raysOrigin,
+                raysDirection,
+                densityBitfield,
+                dataInfo.metadata,
+                imageIndices,
+                transforms,
+                dataInfo.aabbMin,
+                dataInfo.aabbMax,
                 NEAR,
                 CONE_ANGLE_CONST,
                 nElementsCoords
@@ -222,10 +226,11 @@ namespace InstantNeRF
             Tensor compactedCoords = compactedResults[0];
             Tensor rayNumstepsCompacted = compactedResults[1];
             Tensor rayCounterCompacted = compactedResults[2];
-            this.measuredBatchSize += rayCounterCompacted;
-            if(this.training)
+            Tensor measuredBatchSize = torch.zeros(1, torch.int32, CUDA).contiguous();
+            measuredBatchSize += rayCounterCompacted;
+            if (this.training)
             {
-                updateRayBatchsize();
+                updateRayBatchsize(measuredBatchSize);
             }
             data.Add("coords", compactedCoords.detach());
             data.Add("rayNumsteps", rayNumsteps.detach());
@@ -238,42 +243,20 @@ namespace InstantNeRF
             this.iteration++;
             return data;
         }
-        private void updateRayBatchsize()
+        private void updateRayBatchsize(Tensor measured)
         {
-            if(iteration % updateGridFrequency == (updateGridFrequency - 1))
+            if (iteration % updateGridFrequency == (updateGridFrequency - 1))
             {
-                int measuredBatchSize = Math.Max(this.measuredBatchSize.item<int>() / 16, 1);
+                int measuredBatchSize = Math.Max(measured.item<int>() / 16, 1);
                 int measuredRaysPerBatch = nRays * targetBatchSize / measuredBatchSize;
 
                 double result = (double)measuredRaysPerBatch / 128;
                 int roundedUpResult = (int)Math.Ceiling(result);
 
                 this.nRays = Math.Min(roundedUpResult * 128, targetBatchSize);
-                this.measuredBatchSize.zero_();
             }
         }
-        private void prepareData()
-        {
-            if(dataInfo == null) {  return; }
-            Console.WriteLine("tmp invalid:" + temporaryGrid.IsInvalid);
-            Console.WriteLine("grid invalid:" + densityGrid.IsInvalid);
-            Console.WriteLine("bitfield invalid:" + densityBitfield.IsInvalid);
-            Console.WriteLine("mean invalid:" + densityMean.IsInvalid);
-            if (this.temporaryGrid.device != CUDA)
-            {
-                this.densityBitfield = this.densityBitfield.to(CUDA).contiguous();
-                this.densityGrid = this.densityGrid.to(CUDA).contiguous();
-                this.temporaryGrid = this.temporaryGrid.to(CUDA).contiguous();
-                this.densityMean = this.densityMean.to(CUDA).contiguous();
-                this.measuredBatchSize = this.measuredBatchSize.to(CUDA).contiguous();
-                dataInfo.focalLengths = dataInfo.focalLengths.to(CUDA).contiguous();
-                dataInfo.transforms = dataInfo.transforms.to(CUDA).contiguous();
-                dataInfo.metadata = dataInfo.metadata.to(CUDA).contiguous();
-            }
-
-        }
-
-        public void printDensity() 
+        public void printDensity()
         {
             Utils.printDims(this.densityBitfield, "densityBitfield");
             Utils.printFirstNValues(this.densityBitfield, 3, "densityBitfield");

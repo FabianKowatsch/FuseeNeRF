@@ -215,7 +215,7 @@ namespace InstantNeRF
                 }
             }
             Tensor poses = torch.stack(posesList);
-            poses = Utils.posesToNGP(poses, new float[] { 1, -1, 1 }, this.aabbScale, this.offset[0]);
+            poses = Utils.posesToNGP(poses, new float[] { 1, -1, 1 }, this.aabbScale, this.offset);
             Tensor images = torch.stack(imageList);
             return (poses, images);
         }
