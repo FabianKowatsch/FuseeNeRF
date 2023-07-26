@@ -168,7 +168,7 @@ namespace InstantNeRF
             Tensor imageIndices;
             Tensor raysOrigin = data["raysOrigin"].contiguous();
             Tensor raysDirection = data["raysDirection"].contiguous();
-            data["bgColor"] = data["bgColor"].to(torch.float32).contiguous();
+           
 
 
             if (this.training)
@@ -177,6 +177,7 @@ namespace InstantNeRF
                 {
                     updateDensityGrid(mlp);
                 }
+                data["bgColor"] = data["bgColor"].to(torch.float32).contiguous();
                 imageIndices = data["imageIndices"].to(torch.int32).contiguous();
                 transforms = dataInfo.transforms;
             }
@@ -209,8 +210,8 @@ namespace InstantNeRF
 
             if (!this.training)
             {
-                rayNumsteps.detach_();
-                coords.detach_();
+                rayNumsteps = rayNumsteps.detach();
+                coords = coords.detach();
                 data.Add("positions", positions);
                 data.Add("directions", directions);
                 return data;

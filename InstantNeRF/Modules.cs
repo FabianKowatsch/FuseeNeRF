@@ -77,6 +77,27 @@ namespace Modules
 
             return output;
         }
+
+        public Tensor inference(Tensor x)
+        {
+            if (!x.is_cuda)
+            {
+                Console.WriteLine("input must be a CUDA tensor");
+                x = x.cuda();
+            }
+
+            long batchSize = x.shape[0];
+            long batchSizeGranularity = Convert.ToInt64(TcnnWrapper.batchSizeGranularity());
+            long paddedBatchSize = (batchSize + batchSizeGranularity - 1) / batchSizeGranularity * batchSizeGranularity;
+
+            Tensor xPadded = (batchSize == paddedBatchSize) ? x : torch.nn.functional.pad(x, new long[4] { 0L, 0L, 0L, paddedBatchSize - batchSize });
+
+            Tensor output = tcnnModule.inference(xPadded.to_type(torch.float32).contiguous(), param.contiguous());
+            output = output.slice(0, 0, batchSize, 1);
+            output = output.slice(1, 0, outputDims, 1);
+
+            return output;
+        }
         public void backward(float gradScale)
         {
             if (this.gradFnc != null)

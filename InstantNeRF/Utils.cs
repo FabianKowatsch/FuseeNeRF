@@ -65,18 +65,16 @@ namespace InstantNeRF
             return torch.from_array(output, torch.float32);
         }
 
-        public static float[,] fuseeMatrixToNGPMatrix(float[] pose, float scale, float[] offset)
+        public static Tensor fuseeMatrixToNGPMatrix(float[] pose, float scale, float[] offset)
         {
             float[,] output = new float[,]
             {
                 {pose[4], -pose[5], -pose[6], pose[7] * scale + offset[0]},
                  {pose[8], -pose[9], -pose[10], pose[11] * scale + offset[1]},
-                  {pose[0], -pose[1], -pose[2], pose[3] * scale + offset[2]},
-                   {0, 0, 0, 1},
-
+                  {pose[0], -pose[1], -pose[2], pose[3] * scale + offset[2]}
             };
 
-            return output;
+            return torch.from_array(output, torch.float32);
         }
 
         public static Tensor loadRays(Tensor poses, Tensor images, Tensor K, int width, int height)
@@ -87,6 +85,14 @@ namespace InstantNeRF
             for (int i = 0; i < poses.shape[0]; i++)
             {
                 (Tensor origins, Tensor dirs) = getRaysFromPose(width, height, K, poses[i]);
+
+                if(i == 0)
+                {
+                    printDims(K, "intrinsics");
+                    printDims(poses[i], "cam2WorldMtx");
+                    Console.WriteLine("height:" + height);
+                    Console.WriteLine("width: " + width);
+                }
 
                 Tensor raysResult = torch.concatenate(new List<Tensor>() {origins, dirs }, 2);
                 raysList.Add(raysResult);

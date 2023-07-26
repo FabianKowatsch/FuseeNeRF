@@ -76,6 +76,32 @@ namespace tcnnModule {
 		}
 		return { std::move(ctx), output };
 	}
+	torch::Tensor Module::inference(torch::Tensor input, torch::Tensor params) {
+
+		CHECK_INPUT(input);
+		CHECK_INPUT(params);
+
+		// Types
+		CHECK_THROW(input.scalar_type() == torch::kFloat32);
+		CHECK_THROW(params.scalar_type() == c10_param_precision());
+
+		// Sizes
+		CHECK_THROW(input.size(1) == n_input_dims());
+		CHECK_THROW(params.size(0) == n_params());
+		// Device
+		at::Device device = input.device();
+		CHECK_THROW(device == params.device());
+
+		const at::cuda::CUDAGuard device_guard{ device };
+		cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+
+		uint32_t batch_size = input.size(0);
+		torch::Tensor output = torch::empty({ batch_size, n_output_dims() }, torch::TensorOptions().dtype(c10_output_precision()).device(device));
+
+		m_module->inference(stream, batch_size, input.data_ptr<float>(), void_data_ptr(output), void_data_ptr(params));
+
+		return output;
+	}
 
 	std::tuple<torch::Tensor, torch::Tensor> Module::bwd(const tcnn::cpp::Context& ctx, torch::Tensor input, torch::Tensor params, torch::Tensor output, torch::Tensor dL_doutput) {
 		if (!ctx.ctx) {

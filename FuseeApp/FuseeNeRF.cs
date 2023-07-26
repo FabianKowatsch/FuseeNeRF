@@ -236,20 +236,20 @@ namespace FuseeApp
             Console.WriteLine(matrix);
             float[] pose = matrix.ToArray();
 
-            float[,] poseConverted = Utils.fuseeMatrixToNGPMatrix(pose, 1f, new float[3] {0f,0f,0f});
-            //Console.WriteLine("pose: ");
-            foreach(var pose2 in poseConverted)
-            {
-                Console.WriteLine(pose2);
-            }
+            Tensor poseConverted = Utils.fuseeMatrixToNGPMatrix(pose, 1f, new float[3] {0f,0f,0f});
 
             //intrinsics
             float centerX = this.Width / 2;
             float centerY = this.Height / 2;
 
-            Tensor intrinsics = torch.from_array(new float[4] { _focalX, _focalY, centerX, centerY }, device: CUDA);
+            float[,] intrinsicsArray = new float[,] {
+                { _focalX, 0f, centerX },
+                {0f, _focalY, centerY },
+                {0f, 0f, 1f }
+            };
+            Tensor intrinsics = torch.from_array(intrinsicsArray);
 
-            Tensor image = _trainer.testInference(torch.from_array(poseConverted, device: CUDA), intrinsics, height: this.Height, width: this.Width, 1);
+            Tensor image = _trainer.testInference(poseConverted, intrinsics, height: this.Height, width: this.Width, 1);
             image = ByteTensor(image);
             image.to(CPU);
             byte[] buffer = image.data<byte>().ToArray();

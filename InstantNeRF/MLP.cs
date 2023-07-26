@@ -7,6 +7,7 @@ using TorchSharp;
 using static TorchSharp.torch;
 using Modules;
 using static InstantNeRF.AutogradFunctions;
+using static TorchSharp.torch.utils;
 
 namespace InstantNeRF
 {
@@ -42,47 +43,76 @@ namespace InstantNeRF
         public Dictionary<string, Tensor> forward(Dictionary<string, Tensor> data)
         {
             long batchSize = data["positions"].size(0);
-            Tensor outputsFlat = this.runMLP(data["positions"], data["directions"]);
+
+            Tensor outputsFlat;
+            if (this.training)
+            {
+               outputsFlat = this.runMlpForward(data["positions"], data["directions"]);
+            }
+            else
+            {
+                outputsFlat = this.runMlpInference(data["positions"], data["directions"]);
+            }
+            
             data.Add("raw", outputsFlat.reshape(batchSize, outputsFlat.size(-1)));
             return data;
         }
 
-        public Tensor runMLP(Tensor positions, Tensor directions)
+        public Tensor runMlpForward(Tensor positions, Tensor directions)
         {
-            // Input Encoding
-            Console.WriteLine("-:-:- before encoding pos -:-:-");
-            Tensor positionsFlat = torch.reshape(positions, -1, positions.size(-1)).detach();
+            Console.WriteLine("F O R W A R D");
 
+            // Input Encoding
+            Tensor positionsFlat = torch.reshape(positions, -1, positions.size(-1)).detach();
             Tensor positionsEncoded = this.positionalEnc.forward(positionsFlat);
 
             if (positions.Dimensions > directions.Dimensions)
                 directions = directions.slice(0, 0, directions.size(0), 1).expand(positions.shape);
 
             Tensor directionsFlat = torch.reshape(directions, -1, directions.size(-1)).detach();
-
-            Console.WriteLine("-:-:- before encoding dir -:-:-");
-
             Tensor directionsEncoded = this.directionalEnc.forward(directionsFlat);
 
             // Networks
-            Console.WriteLine("-:-:- before sigma -:-:-");
             Tensor densityOut = this.sigmaNet.forward(positionsEncoded);
-
             Tensor sigma = densityOut.slice(-1, 0, 1, 1);
             Tensor geometryFeatures = densityOut.slice(-1, 1, densityOut.size(-1), 1);
 
             Tensor colorNetIn = torch.cat(new List<Tensor>() { geometryFeatures, directionsEncoded }, -1);
-
-            Console.WriteLine("-:-:- before color -:-:-");
             Tensor colorOutput = this.colorNet.forward(colorNetIn);
 
             Tensor output = torch.cat(new List<Tensor>() { colorOutput, sigma }, -1).to(torch.float32).contiguous();
+            return output;
+        }
 
+        public Tensor runMlpInference(Tensor positions, Tensor directions)
+        {
+            Console.WriteLine("I N F E R E N C E");
+
+            // Input Encoding
+            Tensor positionsFlat = torch.reshape(positions, -1, positions.size(-1)).detach();
+            Tensor positionsEncoded = this.positionalEnc.inference(positionsFlat);
+
+            if (positions.Dimensions > directions.Dimensions)
+                directions = directions.slice(0, 0, directions.size(0), 1).expand(positions.shape);
+
+            Tensor directionsFlat = torch.reshape(directions, -1, directions.size(-1)).detach();
+            Tensor directionsEncoded = this.directionalEnc.inference(directionsFlat);
+
+            // Networks
+            Tensor densityOut = this.sigmaNet.inference(positionsEncoded);
+            Tensor sigma = densityOut.slice(-1, 0, 1, 1);
+            Tensor geometryFeatures = densityOut.slice(-1, 1, densityOut.size(-1), 1);
+
+            Tensor colorNetIn = torch.cat(new List<Tensor>() { geometryFeatures, directionsEncoded }, -1);
+            Tensor colorOutput = this.colorNet.inference(colorNetIn);
+
+            Tensor output = torch.cat(new List<Tensor>() { colorOutput, sigma }, -1).to(torch.float32).contiguous();
             return output;
         }
 
         public Tensor density(Tensor positionsFlat)
         {
+            Console.WriteLine("D E N S I T Y");
             Tensor positionsEncoded = this.positionalEnc.forward(positionsFlat);
             Tensor densityOutput = this.sigmaNet.forward(positionsEncoded);
             Tensor density = densityOutput.slice(1, 0, 1, 1).to(torch.float32);
@@ -91,6 +121,7 @@ namespace InstantNeRF
 
         public void backward(float gradScale)
         {
+            Console.WriteLine("B A C K W A R D");
             colorNet.backward(gradScale);
 
             directionalEnc.backward(gradScale);

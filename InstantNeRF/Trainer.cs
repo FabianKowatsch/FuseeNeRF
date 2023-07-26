@@ -110,14 +110,13 @@ namespace InstantNeRF
             {
                 using (torch.no_grad())
                 {
-                    Console.WriteLine("intrinsics");
-                    intrinsics.print();
-                    Console.WriteLine("pose");
-                    pose.print();
-                    Console.WriteLine("width:" + renderWidth);
+                    Utils.printDims(intrinsics, "intrinsics");
+                    Utils.printDims(pose, "cam2WorldMtx");
                     Console.WriteLine("height:" + renderHeight);
+                    Console.WriteLine("width: " + renderWidth);
+
                     (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(renderWidth, renderHeight, intrinsics, pose);
-                    Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "rayOrigins", raysO }, { "rayDirections", raysDir }, { "pose", pose } };
+                    Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "raysOrigin", raysO }, { "raysDirection", raysDir }, { "pose", pose } };
 
                     image = testStep(data, Convert.ToInt64(height), Convert.ToInt64(width));
 

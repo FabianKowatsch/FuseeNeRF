@@ -67,6 +67,9 @@ EXPORT_API Handle2D forward(tcnnModule::Module* module, torch::Tensor* input, to
     return tuple;
     );
 }
+EXPORT_API torch::Tensor* inference(tcnnModule::Module* module, torch::Tensor* input, torch::Tensor* params) {
+    CATCH_TENSOR(module->inference(*input, *params));
+}
 EXPORT_API Handle2D backward(tcnnModule::Module* module, tcnnModule::ContextWrapper* ctxWrapper, torch::Tensor* input, torch::Tensor* params, torch::Tensor* output, torch::Tensor* outputGrad)
 {
     auto result = module->bwd(ctxWrapper->ctx, *input, *params, *output, *outputGrad);

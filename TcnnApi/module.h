@@ -14,6 +14,7 @@ namespace tcnnModule {
 			m_module = std::unique_ptr<tcnn::cpp::Module>(module);
 		}
 		std::tuple<tcnn::cpp::Context, torch::Tensor> fwd(torch::Tensor input, torch::Tensor params);
+		torch::Tensor inference(torch::Tensor input, torch::Tensor params);
 		std::tuple<torch::Tensor, torch::Tensor> bwd(const tcnn::cpp::Context& ctx, torch::Tensor input, torch::Tensor params, torch::Tensor output, torch::Tensor dL_doutput);
 		std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> bwd_bwd_input(const tcnn::cpp::Context& ctx, torch::Tensor input, torch::Tensor params, torch::Tensor dL_ddLdinput, torch::Tensor dL_doutput);
 		torch::Tensor initial_params(size_t seed);

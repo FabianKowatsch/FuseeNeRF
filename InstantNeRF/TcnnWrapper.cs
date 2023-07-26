@@ -26,6 +26,9 @@ namespace InstantNeRF
         public static extern Handle2D forward(IntPtr module, IntPtr input, IntPtr parameters);
 
         [DllImport("TcnnApi.dll")]
+        public static extern IntPtr inference(IntPtr module, IntPtr input, IntPtr parameters);
+
+        [DllImport("TcnnApi.dll")]
         public static extern Handle2D backward(IntPtr module, IntPtr ctx, IntPtr input, IntPtr parameters, IntPtr output, IntPtr outputGrad);
 
         [DllImport("TcnnApi.dll")]
@@ -105,6 +108,10 @@ namespace InstantNeRF
                 Handle2D tuple = TcnnWrapper.forward(handle, input.Handle, parameters.Handle);
                 Tensor output = Tensor.UnsafeCreateTensor(tuple.handle2);
                 return (tuple.handle1, output);
+            }
+            public Tensor inference(Tensor input, Tensor parameters)
+            {
+                return Tensor.UnsafeCreateTensor(TcnnWrapper.inference(handle, input.Handle, parameters.Handle));
             }
             public (Tensor inputGrad, Tensor paramsGrad) backward(IntPtr ctx, Tensor input, Tensor parameters, Tensor output, Tensor outputGrad)
             {
