@@ -186,7 +186,10 @@ namespace InstantNeRF
                 transforms = data["pose"].unsqueeze(0);
                 imageIndices = torch.zeros(raysOrigin.size(0));
             }
-
+            Utils.printDims(raysOrigin, "rayO");
+            Utils.printFirstNValues(raysOrigin,3, "rayO");
+            Utils.printDims(raysDirection, "rayD");
+            Utils.printFirstNValues(raysDirection,3, "rayD");
 
             Tensor[] sampledResults = RaymarchApi.sampleRays(
                 raysOrigin,
@@ -202,16 +205,16 @@ namespace InstantNeRF
                 nElementsCoords
                 );
             Tensor coords = sampledResults[0];
-            Tensor positions = coords.slice(1, 0, 3, 1).detach();
-            Tensor directions = coords.slice(1, 4, coords.size(1), 1).detach();
+            Tensor positions = coords.slice(-1, 0, 3, 1).detach();
+            Tensor directions = coords.slice(-1, 4, coords.size(-1), 1).detach();
             Tensor rayIndices = sampledResults[1];
             Tensor rayNumsteps = sampledResults[2];
             Tensor rayCounter = sampledResults[3];
 
             if (!this.training)
             {
-                rayNumsteps = rayNumsteps.detach();
-                coords = coords.detach();
+                data.Add("coords", coords.detach());
+                data.Add("rayNumsteps", rayNumsteps.detach());
                 data.Add("positions", positions);
                 data.Add("directions", directions);
                 return data;

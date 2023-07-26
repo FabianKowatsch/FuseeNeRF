@@ -26,7 +26,7 @@ namespace InstantNeRF
             Tensor networkOutput = data["raw"];
             Tensor coords = data["coords"];
             Tensor numSteps = data["rayNumsteps"];
-            Tensor numStepsCompacted = data["rayNumstepsCompacted"];
+            
             DataInfo dataInfo = sampler.getData();
             float aabbMin = dataInfo.aabbMin;
             float aabbMax = dataInfo.aabbMax;
@@ -34,6 +34,7 @@ namespace InstantNeRF
             Dictionary<string, Tensor> result = new Dictionary<string, Tensor>() { };
             if (this.training)
             {
+                Tensor numStepsCompacted = data["rayNumstepsCompacted"];
                 Tensor bgColor = data["bgColor"].detach();
                 this.renderer = new DifferentiableRenderer();
                 Tensor rgbs = renderer.Forward(
@@ -52,7 +53,9 @@ namespace InstantNeRF
             }
             else
             {
-
+                Utils.printDims(networkOutput, "MLP_OUT");
+                Utils.printMean(networkOutput, "MLP_OUT");
+                Utils.printFirstNValues(networkOutput, 3, "MLP_OUT");
                 (Tensor rgbs, Tensor alphas) = VolumeRenderingApi.Inference(
                     networkOutput, 
                     coords, 

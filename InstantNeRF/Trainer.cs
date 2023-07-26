@@ -88,17 +88,8 @@ namespace InstantNeRF
             return (gtRGB, predictedRGB, loss);
         }
 
-        public Tensor testStep(Dictionary<string, Tensor> data, long height, long width, float bgColor = 1.0f, bool perturb = false)
-        {
 
-            Tensor rgbOut = this.network.testStep(data);
-            Tensor predictedRGB = rgbOut.reshape(-1, height, width, 3);
-            //Tensor predictedDepth = depthOut.reshape(-1, height, width, 3);
-
-            return predictedRGB;
-        }
-
-        public Tensor testInference(Tensor pose, Tensor intrinsics, int height, int width, int downScale = 1)
+        public Tensor inferenceStepRT(Tensor pose, Tensor intrinsics, int height, int width, int downScale = 1)
         {
             int renderWidth = width * downScale;
             int renderHeight = height * downScale;
@@ -116,9 +107,12 @@ namespace InstantNeRF
                     Console.WriteLine("width: " + renderWidth);
 
                     (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(renderWidth, renderHeight, intrinsics, pose);
-                    Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "raysOrigin", raysO }, { "raysDirection", raysDir }, { "pose", pose } };
+                    Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "raysOrigin", raysO.to(CUDA) }, { "raysDirection", raysDir.to(CUDA) }, { "pose", pose.to(CUDA).contiguous() } };
 
-                    image = testStep(data, Convert.ToInt64(height), Convert.ToInt64(width));
+                    Tensor rgbOut = this.network.testStep(data);
+                    Utils.printDims(rgbOut, "RGB");
+                    Utils.printFirstNValues(rgbOut, 3, "RGB");
+                    image = rgbOut.reshape(-1, (long)height, (long)width, 3);
 
                     if (downScale != 1)
                     {

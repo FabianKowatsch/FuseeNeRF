@@ -41,7 +41,7 @@ namespace FuseeApp
         private int currentStep = 0;
         private readonly int stepsToTrain = 5;
         private DataProvider _dataProvider;
-
+        private Config _config;
         private Transform _camPivotTransform;
 
         private Trainer _trainer;
@@ -52,7 +52,7 @@ namespace FuseeApp
         private async Task Load()
         {
             //Simulate Camera to get the poses required for inference
-
+            this.SetWindowSize(400, 400);
             _camScene = new SceneContainer();
             _camPivotTransform = new Transform();
             _camera = new Camera(ProjectionMethod.Perspective, ZNear, ZFar, _fovy) { BackgroundColor = float4.One };
@@ -148,19 +148,19 @@ namespace FuseeApp
                 Console.WriteLine("torch version: " + __version__);
                 Device device = cuda.is_available() ? CUDA : CPU;
 
-                Config config = new Config();
+                _config = new Config();
 
-                DataProvider trainData = new DataProvider(device, config.dataPath, config.trainDataFilename, "train", config.imageDownscale, config.aabbScale, config.aabbMin, config.aabbMax, config.offset, config.bgColor, config.nRays, preload: false, config.datasetType);
-                DataProvider evalData = new DataProvider(device, config.dataPath, config.evalDataFilename, "train", config.imageDownscale, config.aabbScale, config.aabbMin, config.aabbMax, config.offset, config.bgColor, config.nRays, preload: false, config.datasetType);
+                DataProvider trainData = new DataProvider(device, _config.dataPath, _config.trainDataFilename, "train", _config.imageDownscale, _config.aabbScale, _config.aabbMin, _config.aabbMax, _config.offset, _config.bgColor, _config.nRays, preload: false, _config.datasetType);
+                DataProvider evalData = new DataProvider(device, _config.dataPath, _config.evalDataFilename, "train", _config.imageDownscale, _config.aabbScale, _config.aabbMin, _config.aabbMax, _config.offset, _config.bgColor, _config.nRays, preload: false, _config.datasetType);
                 Console.WriteLine("created datasets");
 
                 GridSampler sampler = new GridSampler(trainData);
                 Console.WriteLine("created gridsampler");
 
-                Network network = new Network(sampler, config.gradScale, config.bgColor);
+                Network network = new Network(sampler, _config.gradScale, _config.bgColor);
                 Console.WriteLine("created net");
 
-                TorchSharp.Modules.Adam optimizer = optim.Adam(network.mlp.getParams(), lr: config.learningRate, beta1: config.beta1, beta2: config.beta2, eps: config.epsilon, weight_decay: config.weightDecay);
+                TorchSharp.Modules.Adam optimizer = optim.Adam(network.mlp.getParams(), lr: _config.learningRate, beta1: _config.beta1, beta2: _config.beta2, eps: _config.epsilon, weight_decay: _config.weightDecay);
                 Console.WriteLine("created optimizer");
 
                 Loss<Tensor, Tensor, Tensor> criterion = torch.nn.MSELoss(reduction: nn.Reduction.None);
@@ -231,12 +231,19 @@ namespace FuseeApp
         private void InferenceStep()
         {
             //pose
-            float4 viewport;
-            float4x4 matrix = _camera.GetProjectionMat(this.Width, this.Height, out viewport);
-            Console.WriteLine(matrix);
-            float[] pose = matrix.ToArray();
+            
+            //float4 viewport;
+            //float4x4 matrix = _camera.GetProjectionMat(this.Width, this.Height, out viewport);
 
-            Tensor poseConverted = Utils.fuseeMatrixToNGPMatrix(pose, 1f, new float[3] {0f,0f,0f});
+            float4x4 matrix = float4x4.Zero;
+            matrix.Column1 = new float4(-0.999f , 0.004f , -0.013f, -0.05f);
+            matrix.Column2 = new float4(-0.014f, -0.3f, 0.954f, 3.845f);
+            matrix.Column3 = new float4(0f, 0.954f, 0.299f, 1.208f);
+            matrix.Column4 = new float4(0f, 0f, 0f, 1f);
+
+            Tensor pose = torch.from_array(matrix.ToArray()).reshape(4,4);
+
+            Tensor poseConverted = Utils.matrixToNGP(pose, _config.aabbScale, _config.offset);
 
             //intrinsics
             float centerX = this.Width / 2;
@@ -249,7 +256,7 @@ namespace FuseeApp
             };
             Tensor intrinsics = torch.from_array(intrinsicsArray);
 
-            Tensor image = _trainer.testInference(poseConverted, intrinsics, height: this.Height, width: this.Width, 1);
+            Tensor image = _trainer.inferenceStepRT(poseConverted, intrinsics, height: this.Height, width: this.Width, 1);
             image = ByteTensor(image);
             image.to(CPU);
             byte[] buffer = image.data<byte>().ToArray();

@@ -36,23 +36,21 @@ namespace InstantNeRF
                     throw new Exception("Wrong argument");
             }
         }
-        public static Tensor posesToNGP(Tensor poses, float[] correctPose, float scale, float[] offset)
+        public static Tensor posesToNGP(Tensor poses, float scale, float[] offset)
         {
-            Tensor corrected = torch.from_array(correctPose);
-
 
             List<Tensor> posesList = new List<Tensor>();
 
             for (int i = 0; i < poses.shape[0]; i++)
             {
-                Tensor pose = matrixToNGP(poses.select(0, i), corrected, scale, offset);
+                Tensor pose = matrixToNGP(poses.select(0, i), scale, offset);
                 posesList.Add(pose);
             }
             Tensor result = torch.stack(posesList).to(float32);
             //return result.permute(0, 2, 1);
             return result;
         }
-        public static Tensor matrixToNGP(Tensor matrix, Tensor correctPose, float scale, float[] offset) 
+        public static Tensor matrixToNGP(Tensor matrix, float scale, float[] offset) 
         {
             TorchSharp.Utils.TensorAccessor<float> pose = matrix.data<float>();
             float[,] output = new float[,]
@@ -62,18 +60,6 @@ namespace InstantNeRF
                   {pose[0,0], -pose[0,1], -pose[0,2], pose[0,3] * scale + offset[2]}
 
             };
-            return torch.from_array(output, torch.float32);
-        }
-
-        public static Tensor fuseeMatrixToNGPMatrix(float[] pose, float scale, float[] offset)
-        {
-            float[,] output = new float[,]
-            {
-                {pose[4], -pose[5], -pose[6], pose[7] * scale + offset[0]},
-                 {pose[8], -pose[9], -pose[10], pose[11] * scale + offset[1]},
-                  {pose[0], -pose[1], -pose[2], pose[3] * scale + offset[2]}
-            };
-
             return torch.from_array(output, torch.float32);
         }
 
