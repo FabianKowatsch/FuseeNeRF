@@ -21,11 +21,22 @@ namespace InstantNeRF
             return -10f * torch.log(mseLoss) / torch.log(torch.tensor(new float[] { 10f }).to(mseLoss.device));
         }
 
-        public static Tensor HuberLoss(Tensor x, Tensor y, float delta = 0.1f, nn.Reduction reduction = nn.Reduction.Sum) 
+        public static Tensor HuberLoss(Tensor prediction, Tensor target, float delta = 0.1f, nn.Reduction reduction = nn.Reduction.Sum) 
         {
-            Loss<Tensor, Tensor, Tensor> huber = torch.nn.HuberLoss(delta: delta, reduction: reduction);
-            
-            return huber.call(x, y);
+            //Loss<Tensor, Tensor, Tensor> huber = torch.nn.HuberLoss(delta: delta, reduction: reduction);    
+            //return huber.call(prediction, target);
+            Tensor difference = (prediction - target).abs();
+            Tensor squared = 0.5f / delta * difference * difference;
+            Tensor loss = torch.where(difference > delta, difference - 0.5 * delta, squared);
+            if(reduction == nn.Reduction.Sum)
+            {
+                loss = loss.sum();
+            }
+            else if( reduction == nn.Reduction.Mean)
+            {
+                loss = loss.mean();
+            }
+            return loss;
         }
     }
 }

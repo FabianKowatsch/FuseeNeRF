@@ -60,6 +60,8 @@ namespace InstantNeRF
             data["alpha"].detach_();
             Tensor loss = Metrics.HuberLoss(result["rgb"], data["gt"]);
 
+            //loss = loss * 5;
+
             Console.WriteLine("------------------------");
             Console.WriteLine("LOSS");
             Console.WriteLine("------------------------");
