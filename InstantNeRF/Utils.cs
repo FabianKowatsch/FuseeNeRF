@@ -72,14 +72,6 @@ namespace InstantNeRF
             {
                 (Tensor origins, Tensor dirs) = getRaysFromPose(width, height, K, poses[i]);
 
-                if(i == 0)
-                {
-                    printDims(K, "intrinsics");
-                    printDims(poses[i], "cam2WorldMtx");
-                    Console.WriteLine("height:" + height);
-                    Console.WriteLine("width: " + width);
-                }
-
                 Tensor raysResult = torch.concatenate(new List<Tensor>() {origins, dirs }, 2);
                 raysList.Add(raysResult);
             }

@@ -33,12 +33,7 @@ namespace InstantNeRF
         {
 
             Console.WriteLine("-:-:- before sampling -:-:-");
-            /*
-            foreach (var key in data.Keys)
-            {
-                Utils.printDims(data[key], key + " before sampling");
-            }
-            */
+
             data = this.sampler.Sample(data, this.mlp);
 
             Console.WriteLine("-:-:- after sampling -:-:-");

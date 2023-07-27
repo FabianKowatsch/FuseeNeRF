@@ -68,7 +68,6 @@ namespace InstantNeRF
 
             Tensor images = groundTruthImages.slice(-1, 0, 3, 1);
 
-            images = Utils.srgbToLinear(images);
             Tensor bgColor = (COLOR == 3) ? 1.0f : torch.rand_like(images);
 
             Tensor gtRGB;
@@ -89,37 +88,40 @@ namespace InstantNeRF
         }
 
 
-        public Tensor inferenceStepRT(Tensor pose, Tensor intrinsics, int height, int width, int downScale = 1)
+        public byte[] inferenceStepRT(Tensor pose, Tensor intrinsics, int height, int width, int downScale = 1)
         {
             int renderWidth = width * downScale;
             int renderHeight = height * downScale;
             intrinsics = intrinsics * (float)downScale;
 
-            Tensor image;
-
             using (var d = torch.NewDisposeScope())
             {
                 using (torch.no_grad())
                 {
-                    Utils.printDims(intrinsics, "intrinsics");
-                    Utils.printDims(pose, "cam2WorldMtx");
-                    Console.WriteLine("height:" + renderHeight);
-                    Console.WriteLine("width: " + renderWidth);
 
                     (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(renderWidth, renderHeight, intrinsics, pose);
-                    Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "raysOrigin", raysO.to(CUDA) }, { "raysDirection", raysDir.to(CUDA) }, { "pose", pose.to(CUDA).contiguous() } };
+
+                    raysO = raysO.reshape(-1, 3).to(CUDA); //from [H,W,3] to [H*W,3]
+                    raysDir = raysDir.reshape(-1, 3).to(CUDA); //from [H,W,3] to [H*W,3]
+                    Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "raysOrigin", raysO}, { "raysDirection", raysDir }, { "pose", pose.to(CUDA).contiguous() } };
 
                     Tensor rgbOut = this.network.testStep(data);
                     Utils.printDims(rgbOut, "RGB");
                     Utils.printFirstNValues(rgbOut, 3, "RGB");
-                    image = rgbOut.reshape(-1, (long)height, (long)width, 3);
+                    Tensor imageFloat = rgbOut.reshape((long)height, (long)width, 3);
 
                     if (downScale != 1)
                     {
 
-                        image = torch.nn.functional.interpolate(image.unsqueeze(1), size: new long[] { height, width }, mode: InterpolationMode.Nearest).squeeze(1);
+                        imageFloat = torch.nn.functional.interpolate(imageFloat.unsqueeze(1), size: new long[] { height, width }, mode: InterpolationMode.Nearest).squeeze(1);
                     }
-                    return Utils.linearToSrgb(image[0].detach());
+                    //Tensor image = ByteTensor(imageFloat * 255);
+                    Utils.printDims(imageFloat, "image");
+                    Utils.printMean(imageFloat, "image");
+                    Utils.printFirstNValues(imageFloat, 3, "image");
+                    Tensor image = ByteTensor(Utils.linearToSrgb(imageFloat) * 255).to(CPU);
+                    byte[] buffer = image.data<byte>().ToArray();
+                    return buffer;
                 }
             }
         }

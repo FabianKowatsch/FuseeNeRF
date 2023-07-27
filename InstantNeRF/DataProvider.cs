@@ -176,8 +176,8 @@ namespace InstantNeRF
                         filePath = pathElement.GetString() ?? throw new Exception("wrong path");
                     }
                     Tensor image = useSynthetic ? getImageDataFromPNG(Path.Combine(dataPath, filePath + ".png")) : getImageDataFromJPG(Path.Combine(dataPath, filePath + ".jpg"));
+                    image = Utils.srgbToLinear(image);
                     Tensor transform = torch.from_array(mtx);
-
                     if (!useSynthetic)
                     {
                         switch (mode)

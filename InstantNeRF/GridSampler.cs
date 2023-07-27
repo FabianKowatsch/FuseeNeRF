@@ -14,7 +14,7 @@ namespace InstantNeRF
         private int nRays;
         private int nElementsCoords;
         private int nElementsDensity;
-        private int nElementsBitfield;
+        private int gridsize3D;
         private int sizeIncludingMips;
         private float nearDistance;
         private float[] bgColor;
@@ -47,17 +47,17 @@ namespace InstantNeRF
             this.rgbActivation = rgbActivation;
             this.targetBatchSize = targetBatchSize;
             this.nElementsCoords = nRays * MAX_STEPS;
-            this.nElementsBitfield = GRIDSIZE * GRIDSIZE * GRIDSIZE;
-            this.nElementsDensity = nElementsBitfield * CASCADES;
-            this.sizeIncludingMips = nElementsBitfield * CASCADES / 8;
+            this.gridsize3D = GRIDSIZE * GRIDSIZE * GRIDSIZE;
+            this.nElementsDensity = gridsize3D * CASCADES;
+            this.sizeIncludingMips = gridsize3D * CASCADES / 8;
 
             // Density Grid and Bitfield
             this.temporaryGrid = torch.zeros(nElementsDensity, torch.float32, CUDA).contiguous();
 
-            double result = (double)nElementsBitfield / N_THREADS_LINEAR;
+            double result = (double)gridsize3D / N_THREADS_LINEAR;
             int roundedUpResult = (int)Math.Ceiling(result);
             this.densityMean = torch.zeros(roundedUpResult, torch.float32, CUDA).contiguous();
-            this.densityBitfield = torch.zeros(nElementsBitfield, torch.uint8, CUDA).contiguous();
+            this.densityBitfield = torch.zeros(sizeIncludingMips, torch.uint8, CUDA).contiguous();
             this.densityGrid = torch.zeros(nElementsDensity, torch.float32, CUDA).contiguous();
             this.register_buffer("densityBitfield", densityBitfield);
             this.register_buffer("densityMean", densityMean);
@@ -93,7 +93,7 @@ namespace InstantNeRF
         public void updateDensityGrid(MLP mlp)
         {
             int nCascades = CASCADES + 1;
-            int M = nElementsBitfield * nCascades;
+            int M = gridsize3D * nCascades;
 
             if (this.iteration < 256)
             {
@@ -242,8 +242,6 @@ namespace InstantNeRF
             data.Add("positions", compactedCoords.slice(-1, 0, 3, 1));
             data.Add("directions", compactedCoords.slice(-1, 4, compactedCoords.size(-1), 1));
 
-            printDensity();
-
             this.iteration++;
             return data;
         }
@@ -259,15 +257,6 @@ namespace InstantNeRF
 
                 this.nRays = Math.Min(roundedUpResult * 128, targetBatchSize);
             }
-        }
-        public void printDensity()
-        {
-            Utils.printDims(this.densityBitfield, "densityBitfield");
-            Utils.printFirstNValues(this.densityBitfield, 3, "densityBitfield");
-            Utils.printDims(this.densityGrid, "densityGrid");
-            Utils.printFirstNValues(this.densityGrid, 3, "densityGrid");
-            Utils.printDims(this.temporaryGrid, "temporaryGrid");
-            Utils.printFirstNValues(this.temporaryGrid, 3, "temporaryGrid");
         }
     }
 

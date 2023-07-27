@@ -56,6 +56,8 @@ namespace InstantNeRF
                 Utils.printDims(networkOutput, "MLP_OUT");
                 Utils.printMean(networkOutput, "MLP_OUT");
                 Utils.printFirstNValues(networkOutput, 3, "MLP_OUT");
+                Utils.printDims(coords, "COORDS");
+                Utils.printDims(numSteps, "NUMSTEPS");
                 (Tensor rgbs, Tensor alphas) = VolumeRenderingApi.Inference(
                     networkOutput, 
                     coords, 

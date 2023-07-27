@@ -52,7 +52,6 @@ namespace FuseeApp
         private async Task Load()
         {
             //Simulate Camera to get the poses required for inference
-            this.SetWindowSize(400, 400);
             _camScene = new SceneContainer();
             _camPivotTransform = new Transform();
             _camera = new Camera(ProjectionMethod.Perspective, ZNear, ZFar, _fovy) { BackgroundColor = float4.One };
@@ -220,11 +219,16 @@ namespace FuseeApp
             _angleHorz += _angleVelHorz;
             _angleVert += _angleVelVert;
 
-            if(currentStep < stepsToTrain)
+            if(currentStep <= stepsToTrain)
             {
                 TrainStep();
-                InferenceStep();
+                if (currentStep == stepsToTrain)
+                {
+                    InferenceStep();
+                    Console.ReadLine();
+                }
             }
+
 
         }
 
@@ -256,10 +260,7 @@ namespace FuseeApp
             };
             Tensor intrinsics = torch.from_array(intrinsicsArray);
 
-            Tensor image = _trainer.inferenceStepRT(poseConverted, intrinsics, height: this.Height, width: this.Width, 1);
-            image = ByteTensor(image);
-            image.to(CPU);
-            byte[] buffer = image.data<byte>().ToArray();
+            byte[] buffer = _trainer.inferenceStepRT(poseConverted, intrinsics, height: this.Height, width: this.Width, 1);
             Fusee.Base.Common.ImagePixelFormat format = new Fusee.Base.Common.ImagePixelFormat(Fusee.Base.Common.ColorFormat.RGB);
             ImageData data = new ImageData(buffer, this.Width, this.Height, format);
             texture.Blt(0, 0, data, width: this.Width, height: this.Height);
@@ -283,10 +284,9 @@ namespace FuseeApp
 
         private float[] CalculateFocalLength(float sensorWidth, float sensorHeight, float fov)
         {
-            float fovRad = MathHelper.DegreesToRadians(fov);
 
-            float focalLengthX = (sensorWidth / 2f) / Convert.ToSingle(MathHelper.Tan(Convert.ToDouble(fovRad / 2d)));
-            float focalLengthY = (sensorHeight / 2f) / Convert.ToSingle(MathHelper.Tan(Convert.ToDouble(fovRad / 2d)));
+            float focalLengthX = (sensorWidth / 2f) / Convert.ToSingle(MathHelper.Tan(Convert.ToDouble(fov / 2d)));
+            float focalLengthY = (sensorHeight / 2f) / Convert.ToSingle(MathHelper.Tan(Convert.ToDouble(fov / 2d)));
             return new float[2] { focalLengthX, focalLengthY };
         }
     }
