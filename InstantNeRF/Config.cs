@@ -167,7 +167,7 @@ namespace InstantNeRF
 
                 if (json.RootElement.TryGetProperty("gradScale", out JsonElement gradScaleElement))
                 {
-                    this.gradScale = weightDecayElement.GetSingle();
+                    this.gradScale = gradScaleElement.GetSingle();
                 }
                 else throw new Exception("couldnt find weightDecay");
 

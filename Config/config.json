@@ -15,7 +15,7 @@
   "beta1": 0.9,
   "beta2": 0.99,
   "weightDecay": 0.95,
-  "gradScale":  128.0,
+  "gradScale":  1.0,
   "posEncodingCfg": {
     "otype": "HashGrid",
     "n_levels": 8,
