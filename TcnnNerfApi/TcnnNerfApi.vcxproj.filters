@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{a22953de-e182-4890-8791-14c15543fd93}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="header">
+      <UniqueIdentifier>{48b92b0a-bf87-479a-8962-93bf45eb150d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="nerf_network.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="nerf_module.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="module.h">
+      <Filter>header</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="module.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="api.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="nerf_network.cu">
+      <Filter>src</Filter>
+    </CudaCompile>
+    <CudaCompile Include="nerf_module.cu">
+      <Filter>src</Filter>
+    </CudaCompile>
+  </ItemGroup>
+</Project>
