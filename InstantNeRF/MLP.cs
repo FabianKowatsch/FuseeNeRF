@@ -58,8 +58,8 @@ namespace InstantNeRF
 
             Tensor input = torch.cat(new List<Tensor>() { positions, directions }, dim: 1);
             Tensor output = tcnnMLP.forward(input);
-            Tensor sigma = output.slice(1, 0, 1, 1).squeeze(1);
-            Tensor color = output.slice(1, 1, 3, 1);
+            Tensor color = output.slice(1, 0, 3, 1);
+            Tensor sigma = output.slice(1, 3, 4, 1);
 
             Tensor result = torch.cat(new List<Tensor>() { color, sigma }, -1).to(torch.float32).contiguous();
             return result;
@@ -70,8 +70,8 @@ namespace InstantNeRF
             Console.WriteLine("I N F E R E N C E");
             Tensor input = torch.cat(new List<Tensor>() { positions, directions }, dim: 1);
             Tensor output = tcnnMLP.forward(input);
-            Tensor sigma = output.slice(1, 0, 1, 1).squeeze(1);
-            Tensor color = output.slice(1, 1, 3, 1);
+            Tensor color = output.slice(1, 0, 3, 1);
+            Tensor sigma = output.slice(1, 3, 4, 1);
 
             Tensor result = torch.cat(new List<Tensor>() { color, sigma }, -1).to(torch.float32).contiguous();
 

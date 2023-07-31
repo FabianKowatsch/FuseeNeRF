@@ -36,9 +36,13 @@ namespace InstantNeRF
 
             Parameter parameters = optimizer.getParameters();
 
-            Console.WriteLine("PARAMS");
+            Console.WriteLine("PARAMS BEFORE STEP");
             parameters.print();
             Console.WriteLine(parameters.IsInvalid);
+            Console.WriteLine(parameters.IsInvalid);
+            Console.WriteLine(parameters.device);
+            Console.WriteLine(parameters.dtype);
+            Console.WriteLine(parameters.numel());
             growthTracker++;
             if (parameters.numel() > 0)
             {
@@ -51,6 +55,8 @@ namespace InstantNeRF
             }
 
             optimizer.step();
+
+            Console.WriteLine("PARAMS AFTER STEP");
             Console.WriteLine(parameters.IsInvalid);
             Console.WriteLine(parameters.device);
             Console.WriteLine(parameters.dtype);
