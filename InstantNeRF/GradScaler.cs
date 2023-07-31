@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices.Marshalling;
 using System.Text;
 using System.Threading.Tasks;
 using TorchSharp;
@@ -31,37 +30,38 @@ namespace InstantNeRF
             return x * this.scaleFactor;
         }
 
-        public void step(Adam optimizer)
+        public void step(Optimizer optimizer)
         {
 
-            var paramsArray = optimizer.parameters().ToArray();
 
-            for (int i = 0; i < paramsArray.Length; i++)
+            Parameter parameters = optimizer.getParameters();
+
+            Console.WriteLine("PARAMS");
+            parameters.print();
+            Console.WriteLine(parameters.IsInvalid);
+            growthTracker++;
+            if (parameters.numel() > 0)
             {
-                growthTracker++;
 
-                if (paramsArray[i].numel() > 0)
-                {
-                    if (paramsArray[i].grad()!.isinf().any().item<bool>() || paramsArray[i].grad()!.isnan().any().item<bool>())
-                    {
-                        wasNaN = true;
-                        growthTracker = 0;
-                    }
-                }
-
-            }
-
-            optimizer.step();
-
-            for (int i = 0; i < paramsArray.Length; i++)
-            {
-                growthTracker++;
-
-                if (paramsArray[i].isinf().any().item<bool>() || paramsArray[i].isnan().any().item<bool>())
+                if (parameters.grad()!.isinf().any().item<bool>() || parameters.grad()!.isnan().any().item<bool>())
                 {
                     wasNaN = true;
                     growthTracker = 0;
                 }
+            }
+
+            optimizer.step();
+            Console.WriteLine(parameters.IsInvalid);
+            Console.WriteLine(parameters.device);
+            Console.WriteLine(parameters.dtype);
+            Console.WriteLine(parameters.numel());
+            parameters.print();
+            growthTracker++;
+
+            if (parameters.isinf().any().item<bool>() || parameters.isnan().any().item<bool>())
+            {
+                wasNaN = true;
+                growthTracker = 0;
             }
 
         }

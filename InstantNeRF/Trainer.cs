@@ -1,22 +1,13 @@
 ﻿using TorchSharp;
 using static TorchSharp.torch;
 using System.Text.Json;
-using System.Collections.Generic;
-using System.Xml.Schema;
-using System;
-using InstantNeRF;
-using TorchSharp.Modules;
 
 namespace InstantNeRF
 {
     public class Trainer
     {
         private string name;
-        private optim.lr_scheduler.LRScheduler scheduler;
-        private TorchSharp.Modules.Adam optimizer;
-        private Device device;
-        private int evalEveryNEpochs;
-        private bool updateSchedulerEveryStep;
+        private Optimizer optimizer;
         private int nIterations;
         private int lastIter;
         private int epoch;
@@ -31,7 +22,7 @@ namespace InstantNeRF
 
         public Trainer(
             string name,
-            Adam optimizerAdam,
+            Optimizer optimizer,
             Network network,
             int evalEveryNEpochs = 50,
             bool updateSchedulerEveryStep = true,
@@ -41,12 +32,8 @@ namespace InstantNeRF
         {
             this.name = name;
             this.nIterations = nIterations;
-            this.device = cuda.is_available() ? CUDA : CPU;
-            this.optimizer = optimizerAdam;
+            this.optimizer = optimizer;
             this.network = network;
-            this.scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda: iter => lambdaLR(iter));
-            this.evalEveryNEpochs = evalEveryNEpochs;
-            this.updateSchedulerEveryStep = updateSchedulerEveryStep;
             this.savePath = createDirectory(subdirectoryName);
             this.checkpointPath = createDirectory(subdirectoryName + "\\checkpoints");
             this.logPath = createDirectory(subdirectoryName + "\\logs");
@@ -135,8 +122,6 @@ namespace InstantNeRF
                 Dictionary<string, Tensor> data = dataProvider.getTrainData();
                 this.globalStep++;
 
-                optimizer.zero_grad();
-
                 Tensor loss = this.network.trainStep(data);
 
                 //torch.nn.utils.clip_grad_norm_(network.mlp.parameters(), 2.0);
@@ -147,14 +132,7 @@ namespace InstantNeRF
                 {
                     param.print();
                 }
-                if (this.updateSchedulerEveryStep)
-                {
-                    scheduler.step();
-                }
-                else if (this.globalStep % 5 == 0)
-                {
-                    scheduler.step();
-                }
+
                 float lossValue = loss.item<float>();
                 totalLoss += lossValue;
 
@@ -232,7 +210,7 @@ namespace InstantNeRF
             //state.network = this.nerfRenderer.state_dict();
             //state.meanCount = this.nerfRenderer.meanCount;
             //state.meanDensity = this.nerfRenderer.meanDensity;
-            state.optimizer = this.optimizer.state_dict();
+            //state.optimizer = this.optimizer.state_dict();
             state.lastIteration = lastIter;
             string pathToFile = "" + this.checkpointPath + "/" + checkpointName + ".json";
             this.stats.checkpoints.Append(pathToFile);
@@ -257,8 +235,8 @@ namespace InstantNeRF
             this.stats = state.stats;
             this.epoch = state.epoch;
             this.globalStep = state.globalStep;
-            this.optimizer.load_state_dict(state.optimizer);
-            this.scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda: iter => lambdaLR(state.lastIteration + iter));
+            //this.optimizer.load_state_dict(state.optimizer);
+            //this.scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda: iter => lambdaLR(state.lastIteration + iter));
         }
 
     }

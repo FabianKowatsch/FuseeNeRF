@@ -159,7 +159,7 @@ namespace FuseeApp
                 Network network = new Network(sampler, _config.gradScale, _config.bgColor);
                 Console.WriteLine("created net");
 
-                TorchSharp.Modules.Adam optimizer = optim.Adam(network.mlp.getParams(), lr: _config.learningRate, beta1: _config.beta1, beta2: _config.beta2, eps: _config.epsilon, weight_decay: _config.weightDecay);
+                Optimizer optimizer = new Optimizer(_config.optimizerCfg, network.mlp);
                 Console.WriteLine("created optimizer");
 
                 Loss<Tensor, Tensor, Tensor> criterion = torch.nn.MSELoss(reduction: nn.Reduction.None);

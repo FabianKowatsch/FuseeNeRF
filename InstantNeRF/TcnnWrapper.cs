@@ -1,5 +1,4 @@
-﻿using Modules;
-using System.IO;
+﻿using System.IO;
 using System.Runtime.InteropServices;
 using TorchSharp;
 using static TorchSharp.torch;
@@ -14,90 +13,91 @@ namespace InstantNeRF
             public IntPtr handle1;
             public IntPtr handle2;
         }
-        [StructLayout(LayoutKind.Sequential)]
-        public struct Handle3D
-        {
-            public IntPtr handle1;
-            public IntPtr handle2;
-            public IntPtr handle3;
-        }
 
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         public static extern Handle2D forward(IntPtr module, IntPtr input, IntPtr parameters);
 
-        [DllImport("TcnnApi.dll")]
-        public static extern IntPtr inference(IntPtr module, IntPtr input, IntPtr parameters);
-
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         public static extern Handle2D backward(IntPtr module, IntPtr ctx, IntPtr input, IntPtr parameters, IntPtr output, IntPtr outputGrad);
 
-        [DllImport("TcnnApi.dll")]
-        public static extern Handle3D backwardBackwardInput(IntPtr module, IntPtr ctx, IntPtr input, IntPtr parameters, IntPtr inputGradDl, IntPtr outputGrad);
+        [DllImport("TcnnNerfApi.dll")]
+        public static extern IntPtr density(IntPtr module, IntPtr input, IntPtr parameters);
 
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         public static extern IntPtr initialParams(IntPtr module, ulong seed);
 
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         public static extern uint nInputDims(IntPtr module);
 
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
+        public static extern uint nInputDimsDensity(IntPtr module);
+
+        [DllImport("TcnnNerfApi.dll")]
         public static extern uint nParams(IntPtr module);
 
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         public static extern uint nOutputDims(IntPtr module);
 
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
+        public static extern uint nOutputDimsDensity(IntPtr module);
+
+        [DllImport("TcnnNerfApi.dll")]
         public static extern int paramPrecision(IntPtr module);
 
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         public static extern int outputPrecision(IntPtr module);
 
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         [return: MarshalAs(UnmanagedType.BStr)]
         public static extern string hyperparams(IntPtr module);
 
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         [return: MarshalAs(UnmanagedType.BStr)]
         public static extern string name(IntPtr module);
 
-        [DllImport("TcnnApi.dll")]
-        public static extern IntPtr createNetwork(uint inputDims, uint outputDims, string network);
 
+        [DllImport("TcnnNerfApi.dll")]
+        public static extern IntPtr createNerfNetwork(uint posInputDims, uint dirInputDims, uint extraInputDims, uint dirOffset, string posEncoding, string dirEncoding, string sigmaNet, string colorNet);
 
-        [DllImport("TcnnApi.dll")]
-        public static extern IntPtr createEncoding(uint inputDims, string encoding, int precision);
-
-
-        [DllImport("TcnnApi.dll")]
-        public static extern IntPtr createNetworkWithInputEncoding(uint inputDims, uint outputDims, string encoding, string network);
-
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         public static extern void deleteModule(IntPtr module);
 
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         public static extern uint batchSizeGranularity();
 
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         public static extern void freeTemporaryMemory();
 
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         public static extern int cudaDevice();
 
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         public static extern void setCudaDevice(int device);
-        [DllImport("TcnnApi.dll")]
+        [DllImport("TcnnNerfApi.dll")]
         public static extern int preferredPrecision();
 
+        [DllImport("TcnnNerfApi.dll")]
+        public static extern IntPtr createOptimizer(string config);
 
-        public class ModuleWrapper
+        [DllImport("TcnnNerfApi.dll")]
+        public static extern void step(IntPtr optimizer, float lossScale, IntPtr parameters, IntPtr gradients);
+
+        [DllImport("TcnnNerfApi.dll")]
+        public static extern void allocate(IntPtr optimizer, IntPtr module);
+
+        [DllImport("TcnnNerfApi.dll")]
+        [return: MarshalAs(UnmanagedType.BStr)]
+        public static extern string optimizer_hyperparams(IntPtr optimizer);
+
+        public class NerfModuleWrapper
         {
 
             private IntPtr handle;
-            public ModuleWrapper(IntPtr moduleRef)
+            public NerfModuleWrapper(IntPtr moduleRef)
             {
                 handle = moduleRef;
             }
-            ~ModuleWrapper()
+            ~NerfModuleWrapper()
             {
                 deleteModule(handle);
                 freeTemporaryMemory();
@@ -109,25 +109,16 @@ namespace InstantNeRF
                 Tensor output = Tensor.UnsafeCreateTensor(tuple.handle2);
                 return (tuple.handle1, output);
             }
-            public Tensor inference(Tensor input, Tensor parameters)
-            {
-                return Tensor.UnsafeCreateTensor(TcnnWrapper.inference(handle, input.Handle, parameters.Handle));
-            }
             public (Tensor inputGrad, Tensor paramsGrad) backward(IntPtr ctx, Tensor input, Tensor parameters, Tensor output, Tensor outputGrad)
             {
-
                 Handle2D tuple = TcnnWrapper.backward(handle, ctx, input.Handle, parameters.Handle, output.Handle, outputGrad.Handle);
                 Tensor inputGrad = Tensor.UnsafeCreateTensor(tuple.handle1);
                 Tensor paramsGrad = Tensor.UnsafeCreateTensor(tuple.handle2);
                 return (inputGrad, paramsGrad);
             }
-            public (Tensor outputGradDl, Tensor paramsGrad, Tensor inputGrad) backwardBackwardInput(IntPtr ctx, Tensor input, Tensor parameters, Tensor inputGradDl, Tensor outputGrad)
+            public Tensor density(Tensor input, Tensor parameters)
             {
-                Handle3D tuple = TcnnWrapper.backwardBackwardInput(handle, ctx, input.Handle, parameters.Handle, inputGradDl.Handle, outputGrad.Handle);
-                Tensor outputGradDl = Tensor.UnsafeCreateTensor(tuple.handle1);
-                Tensor paramsGrad = Tensor.UnsafeCreateTensor(tuple.handle2);
-                Tensor inputGrad = Tensor.UnsafeCreateTensor(tuple.handle3);
-                return (outputGradDl, paramsGrad, inputGrad);
+                return Tensor.UnsafeCreateTensor(TcnnWrapper.density(handle, input.Handle, parameters.Handle));
             }
             public Tensor initialParams(ulong seed)
             {
@@ -136,9 +127,23 @@ namespace InstantNeRF
 
                 return t;
             }
+            public ScalarType paramPrecision()
+            {
+                switch (TcnnWrapper.paramPrecision(handle))
+                {
+                    case 0: return torch.float32;
+                    case 1: return torch.float16;
+                    default: return torch.float32;
+                }
+            }
             public uint nInputDims()
             {
                 uint result = TcnnWrapper.nInputDims(handle);
+                return result;
+            }
+            public uint nInputDimsDensity()
+            {
+                uint result = TcnnWrapper.nInputDimsDensity(handle);
                 return result;
             }
             public uint nParams()
@@ -151,25 +156,10 @@ namespace InstantNeRF
                 uint result = TcnnWrapper.nOutputDims(handle);
                 return result;
             }
-            public ScalarType paramPrecision()
+            public uint nOutputDimsDensity()
             {
-                int p = TcnnWrapper.paramPrecision(handle);
-                switch (p)
-                {
-                    case 0: return torch.float32;
-                    case 1: return torch.half;
-                    default: throw new Exception("Unknown precision");
-                }
-            }
-            public ScalarType outputPrecision()
-            {
-                int p = TcnnWrapper.outputPrecision(handle);
-                switch (p)
-                {
-                    case 0: return torch.float32;
-                    case 1: return torch.half;
-                    default: throw new Exception("Unknown precision");
-                }
+                uint result = TcnnWrapper.nOutputDimsDensity(handle);
+                return result;
             }
             public string hyperparams()
             {
@@ -180,6 +170,10 @@ namespace InstantNeRF
             {
                 string result = TcnnWrapper.name(handle);
                 return result;
+            }
+            public IntPtr getHandle()
+            {
+                return handle;
             }
         }
     }

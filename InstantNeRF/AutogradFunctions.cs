@@ -10,20 +10,18 @@ namespace InstantNeRF
 
         public class ModuleFunction
         {
-            private AutogradContext context;
-            public ModuleFunction(ModuleWrapper tcnnModule, float lossScale)
+            public ModuleFunction(NerfModuleWrapper tcnnModule, float lossScale)
             {
                 this.context = new AutogradContext(tcnnModule, lossScale);
             }
 
+            private AutogradContext context;
             public Tensor Forward(Tensor input, Tensor parameters)
             {
-
                 (IntPtr nativeCtx, Tensor output) = this.context.tcnnModule.forward(input, parameters);
                 this.context.saveForBackward(new List<Tensor> { input, parameters, output });
                 this.context.nativeCtx = nativeCtx;
                 return output;
-
             }
 
             public void Backward(float gradScale)
@@ -43,10 +41,9 @@ namespace InstantNeRF
                 }
                 Tensor input = this.context.savedTensors[0];
                 Tensor parameters = this.context.savedTensors[1];
-
-
                 Tensor inputGrad;
                 Tensor paramsGrad;
+
                 using (torch.no_grad())
                 {
                     Tensor scaledGrad = outputGrad * this.context.lossScale;
@@ -61,7 +58,6 @@ namespace InstantNeRF
                     paramsGrad = (paramsGrad.numel() == 0L) ? paramsGrad : paramsGrad / this.context.lossScale / gradScale;
                     //paramsGrad = (paramsGrad.numel() == 0L) ? paramsGrad : paramsGrad / this.context.lossScale / gradScale;
 
-
                 }
                 if (!inputGrad.IsInvalid)
                 {
@@ -73,7 +69,6 @@ namespace InstantNeRF
                 {
                     parameters.backward(new List<Tensor> { (paramsGrad).nan_to_num() });
                 }
-
             }
 
         }
