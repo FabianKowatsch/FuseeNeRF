@@ -29,15 +29,15 @@
     <ClCompile Include="api.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="optimizer.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="nerf_network.cu">
       <Filter>src</Filter>
     </CudaCompile>
     <CudaCompile Include="nerf_module.cu">
+      <Filter>src</Filter>
+    </CudaCompile>
+    <CudaCompile Include="optimizer.cu">
       <Filter>src</Filter>
     </CudaCompile>
   </ItemGroup>

@@ -19,7 +19,9 @@
   <ItemGroup>
     <ClCompile Include="api.cpp" />
     <ClCompile Include="module.cpp" />
-    <ClCompile Include="optimizer.cpp" />
+    <CudaCompile Include="optimizer.cu">
+      <FileType>CppCode</FileType>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="nerf_module.cu" />

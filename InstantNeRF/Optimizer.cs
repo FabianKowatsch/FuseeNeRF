@@ -23,6 +23,8 @@ namespace InstantNeRF
         {
             float lossScale = parameters.dtype == float16 ? 128.0f : 1.0f;
             Tensor gradients = parameters.grad() ?? torch.empty_like(parameters);
+            Utils.printDims(parameters, "params");
+            Utils.printDims(gradients, "gardients");
             TcnnWrapper.step(handle, lossScale, parameters.Handle, gradients.Handle);
         }
 
