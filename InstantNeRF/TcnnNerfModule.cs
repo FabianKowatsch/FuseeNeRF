@@ -1,6 +1,7 @@
 ﻿using static TorchSharp.torch;
 using TorchSharp;
 using static InstantNeRF.TcnnWrapper;
+using TorchSharp.Modules;
 
 namespace InstantNeRF
 {
@@ -9,7 +10,8 @@ namespace InstantNeRF
         private NerfModuleWrapper nativeTcnnMLP;
         private ulong seed;
         private ScalarType dtype;
-        private TorchSharp.Modules.Parameter param;
+        private Parameter param;
+        private Parameter paramFP;
         public uint outputDims;
         public uint outputDimsDensity;
         private float lossScale;
@@ -22,9 +24,12 @@ namespace InstantNeRF
             this.dtype = nativeTcnnMLP.paramPrecision();
             this.outputDims = nativeTcnnMLP.nOutputDims();
             this.outputDimsDensity = nativeTcnnMLP.nOutputDimsDensity();
-            Tensor initialParams = nativeTcnnMLP.initialParams(this.seed).to_type(this.dtype);
-            param = torch.nn.Parameter(initialParams, requires_grad: true);
-            this.register_parameter("params", param);
+            Tensor paramsFullPrecision = nativeTcnnMLP.initialParams(this.seed);
+            Tensor paramsHalfPrecision = paramsFullPrecision.to_type(this.dtype, copy: true);
+            paramFP = torch.nn.Parameter(paramsFullPrecision, requires_grad: true);
+            param = torch.nn.Parameter(paramsHalfPrecision, requires_grad: true);
+            this.register_parameter("param", param);
+            this.register_parameter("paramFP", paramFP);
             if (this.dtype == torch.half)
             {
                 this.lossScale = 128.0f;
@@ -84,9 +89,9 @@ namespace InstantNeRF
         {
             return nativeTcnnMLP.getHandle();
         }
-        public TorchSharp.Modules.Parameter getParameters()
+        public (Parameter param, Parameter paramFP) getParameters()
         {
-            return param;
+            return (param, paramFP);
         }
     }
 

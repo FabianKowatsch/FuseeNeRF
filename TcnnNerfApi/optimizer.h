@@ -11,7 +11,7 @@ namespace tcnnNerf {
 	public:
 		Optimizer(const nlohmann::json& config);
 		void allocate(uint32_t n_params, std::vector<std::pair<uint32_t, uint32_t>> layer_sizes);
-		void step(float loss_scale, torch::Tensor weights, torch::Tensor gradients);
+		void step(float loss_scale, torch::Tensor weights, torch::Tensor weights_fp, torch::Tensor gradients);
 		nlohmann::json hyperparams();
 	private:
 		std::shared_ptr<tcnn::Optimizer<ngp::nerf_precision>> m_optimizer = nullptr;

@@ -34,7 +34,7 @@ namespace InstantNeRF
         {
 
 
-            Parameter parameters = optimizer.getParameters();
+            Parameter parameters = optimizer.getParameter();
 
             Console.WriteLine("PARAMS BEFORE STEP");
             parameters.print();
@@ -44,15 +44,13 @@ namespace InstantNeRF
             Console.WriteLine(parameters.dtype);
             Console.WriteLine(parameters.numel());
             growthTracker++;
-            if (parameters.numel() > 0)
-            {
 
-                if (parameters.grad()!.isinf().any().item<bool>() || parameters.grad()!.isnan().any().item<bool>())
-                {
-                    wasNaN = true;
-                    growthTracker = 0;
-                }
+            if (isInvalid(parameters.grad()!))
+            {
+                wasNaN = true;
+                growthTracker = 0;
             }
+
 
             optimizer.step();
 
@@ -64,7 +62,7 @@ namespace InstantNeRF
             parameters.print();
             growthTracker++;
 
-            if (parameters.isinf().any().item<bool>() || parameters.isnan().any().item<bool>())
+            if (isInvalid(parameters))
             {
                 wasNaN = true;
                 growthTracker = 0;
@@ -86,5 +84,10 @@ namespace InstantNeRF
         }
 
         public float getScale() { return scaleFactor; }
+
+        private bool isInvalid(Tensor parameter)
+        {
+           return(parameter.isinf().any().item<bool>() || parameter.isnan().any().item<bool>());
+        }
     }
 }

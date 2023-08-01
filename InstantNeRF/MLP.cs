@@ -1,5 +1,6 @@
 ﻿using TorchSharp;
 using static TorchSharp.torch;
+using TorchSharp.Modules;
 
 namespace InstantNeRF
 {
@@ -93,9 +94,9 @@ namespace InstantNeRF
             tcnnMLP.backward(gradScale);
         }
 
-        public List<TorchSharp.Modules.Parameter> getParams()
+        public List<Parameter> getParams()
         {
-            List<TorchSharp.Modules.Parameter> paramsList = new List<TorchSharp.Modules.Parameter>();
+            List<Parameter> paramsList = new List<Parameter>();
             paramsList.AddRange(tcnnMLP.parameters());
             return paramsList;
         }
@@ -105,7 +106,7 @@ namespace InstantNeRF
             return tcnnMLP.getHandle();
         }
 
-        public TorchSharp.Modules.Parameter getParameters()
+        public (Parameter param, Parameter paramFP) getParameters()
         {
             return tcnnMLP.getParameters();
         }

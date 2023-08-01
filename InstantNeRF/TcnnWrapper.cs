@@ -80,7 +80,7 @@ namespace InstantNeRF
         public static extern IntPtr createOptimizer(string config);
 
         [DllImport("TcnnNerfApi.dll")]
-        public static extern void step(IntPtr optimizer, float lossScale, IntPtr parameters, IntPtr gradients);
+        public static extern void step(IntPtr optimizer, float lossScale, IntPtr parameters, IntPtr parametersFullPrecision, IntPtr gradients);
 
         [DllImport("TcnnNerfApi.dll")]
         public static extern void allocate(IntPtr optimizer, IntPtr module);

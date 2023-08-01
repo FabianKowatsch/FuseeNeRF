@@ -184,8 +184,8 @@ EXPORT_API tcnnNerf::Optimizer* createOptimizer(const char* config) {
     return new tcnnNerf::Optimizer(optimizerJson);
 }
 
-EXPORT_API void step(tcnnNerf::Optimizer* optimizer, float lossScale, torch::Tensor* params, torch::Tensor* gradients) {
-    optimizer->step(lossScale, *params, *gradients);
+EXPORT_API void step(tcnnNerf::Optimizer* optimizer, float lossScale, torch::Tensor* params, torch::Tensor* params_fp, torch::Tensor* gradients) {
+    optimizer->step(lossScale, *params, *params_fp, *gradients);
 }
 
 EXPORT_API void allocate(tcnnNerf::Optimizer* optimizer, tcnnNerf::Module* module) {

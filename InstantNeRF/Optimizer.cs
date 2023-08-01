@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using TorchSharp;
 using static TorchSharp.torch;
+using TorchSharp.Modules;
 
 namespace InstantNeRF
 {
@@ -9,23 +10,22 @@ namespace InstantNeRF
     {
         private IntPtr handle;
 
-        private TorchSharp.Modules.Parameter parameters;
+        private Parameter param;
+        private Parameter paramFP;
         public Optimizer(string config, MLP mlp)
         {
             handle = TcnnWrapper.createOptimizer(config);
 
-            parameters = mlp.getParameters();
+            (param, paramFP) = mlp.getParameters();
 
             allocate(mlp.getHandle());
         }
 
         public void step()
         {
-            float lossScale = parameters.dtype == float16 ? 128.0f : 1.0f;
-            Tensor gradients = parameters.grad() ?? torch.empty_like(parameters);
-            Utils.printDims(parameters, "params");
-            Utils.printDims(gradients, "gardients");
-            TcnnWrapper.step(handle, lossScale, parameters.Handle, gradients.Handle);
+            float lossScale = param.dtype == float16 ? 128.0f : 1.0f;
+            Tensor gradients = param.grad() ?? torch.empty_like(param);
+            TcnnWrapper.step(handle, lossScale, param.Handle, paramFP.Handle, gradients.Handle);
         }
 
         public string hyperparams()
@@ -37,9 +37,9 @@ namespace InstantNeRF
             TcnnWrapper.allocate(handle, module);
         }
 
-        public TorchSharp.Modules.Parameter getParameters()
+        public Parameter getParameter()
         {
-            return parameters;
+            return param;
         }
 
     }
