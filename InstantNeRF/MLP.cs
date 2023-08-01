@@ -41,10 +41,6 @@ namespace InstantNeRF
             }
             else
             {
-                Utils.printDims(data["positions"], "positions");
-                Utils.printFirstNValues(data["positions"], 3, "positions");
-                Utils.printDims(data["directions"], "directions");
-                Utils.printFirstNValues(data["directions"], 3, "directions");
                 outputsFlat = this.runMlpInference(data["positions"], data["directions"]);
 
             }

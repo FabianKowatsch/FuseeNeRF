@@ -93,8 +93,6 @@ namespace InstantNeRF
                     Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "raysOrigin", raysO}, { "raysDirection", raysDir }, { "pose", pose.to(CUDA).contiguous() } };
 
                     Tensor rgbOut = this.network.testStep(data);
-                    Utils.printDims(rgbOut, "RGB");
-                    Utils.printFirstNValues(rgbOut, 3, "RGB");
                     Tensor imageFloat = rgbOut.reshape((long)height, (long)width, 3);
 
                     if (downScale != 1)
@@ -103,11 +101,12 @@ namespace InstantNeRF
                         imageFloat = torch.nn.functional.interpolate(imageFloat.unsqueeze(1), size: new long[] { height, width }, mode: InterpolationMode.Nearest).squeeze(1);
                     }
                     //Tensor image = ByteTensor(imageFloat * 255);
-                    Utils.printDims(imageFloat, "image");
-                    Utils.printMean(imageFloat, "image");
-                    Utils.printFirstNValues(imageFloat, 3, "image");
+                    Utils.printDims(imageFloat, "imageFloat");
+                    Utils.printMean(imageFloat, "imageFloat");
+                    Utils.printFirstNValues(imageFloat, 3, "imageFloat");
                     Tensor image = ByteTensor(Utils.linearToSrgb(imageFloat) * 255).to(CPU);
                     byte[] buffer = image.data<byte>().ToArray();
+                    d.DisposeEverything();
                     return buffer;
                 }
             }
@@ -127,12 +126,13 @@ namespace InstantNeRF
                 //torch.nn.utils.clip_grad_norm_(network.mlp.parameters(), 2.0);
 
                 this.network.scaler.step(optimizer);
+                /*
                 Console.WriteLine("----PARAMS----");
                 foreach (var param in network.mlp.getParams())
                 {
                     param.print();
                 }
-
+                */
                 float lossValue = loss.item<float>();
                 totalLoss += lossValue;
 
@@ -172,11 +172,6 @@ namespace InstantNeRF
 
         }
 
-        private double lambdaLR(int iter)
-        {
-            lastIter = iter;
-            return Convert.ToDouble(Math.Pow(0.1d, Math.Min(iter / nIterations, 1)));
-        }
         private string createDirectory(string subdir)
         {
             string subdirectoryPath = Path.Combine(Environment.CurrentDirectory, subdir);
@@ -207,7 +202,7 @@ namespace InstantNeRF
             State state = new State();
             state.epoch = this.epoch;
             state.globalStep = this.globalStep;
-            //state.network = this.nerfRenderer.state_dict();
+            //state.network = this.state_dict();
             //state.meanCount = this.nerfRenderer.meanCount;
             //state.meanDensity = this.nerfRenderer.meanDensity;
             //state.optimizer = this.optimizer.state_dict();

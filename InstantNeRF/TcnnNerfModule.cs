@@ -38,7 +38,6 @@ namespace InstantNeRF
             {
                 this.lossScale = 1.0f;
             }
-            Console.WriteLine(nativeTcnnMLP.hyperparams());
         }
         public override Tensor forward(Tensor x)
         {

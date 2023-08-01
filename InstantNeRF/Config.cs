@@ -34,7 +34,6 @@ namespace InstantNeRF
         public Config()
         {
             string pathToConfig = Path.Combine(Environment.CurrentDirectory, configPath);
-            Console.WriteLine(pathToConfig);
             if (File.Exists(pathToConfig))
             {
                 string jsonContent = File.ReadAllText(pathToConfig);

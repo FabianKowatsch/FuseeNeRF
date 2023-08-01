@@ -186,10 +186,6 @@ namespace InstantNeRF
                 transforms = data["pose"].unsqueeze(0);
                 imageIndices = torch.zeros(raysOrigin.size(0));
             }
-            Utils.printDims(raysOrigin, "rayO");
-            Utils.printFirstNValues(raysOrigin,3, "rayO");
-            Utils.printDims(raysDirection, "rayD");
-            Utils.printFirstNValues(raysDirection,3, "rayD");
 
             Tensor[] sampledResults = RaymarchApi.sampleRays(
                 raysOrigin,

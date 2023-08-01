@@ -14,8 +14,7 @@ using static TorchSharp.torch;
 using System;
 using OpenTK.Mathematics;
 using Fusee.Base.Core;
-using Fusee.Engine.Core.Effects;
-using OpenTK.Graphics.ES20;
+using Fusee.Base.Common;
 
 namespace FuseeApp
 {
@@ -31,18 +30,19 @@ namespace FuseeApp
         private SceneContainer _camScene;
         private SceneRendererForward _sceneRenderer;
 
-        private const float ZNear = 1f;
-        private const float ZFar = 1000;
+        private const float ZNear = 0.1f;
+        private const float ZFar = 10f;
         private readonly float _fovy = M.PiOver4;
 
         private float _focalX;
         private float _focalY;
-        private Texture texture;
+        private Texture _texture;
         private int currentStep = 0;
         private readonly int stepsToTrain = 5;
         private DataProvider _dataProvider;
         private Config _config;
-        private Transform _camPivotTransform;
+        private Transform _simulatingCamPivotTransform;
+        private Transform _mainCamPivotTransform;
 
         private Trainer _trainer;
         private Camera _camera;
@@ -53,8 +53,9 @@ namespace FuseeApp
         {
             //Simulate Camera to get the poses required for inference
             _camScene = new SceneContainer();
-            _camPivotTransform = new Transform();
-            _camera = new Camera(ProjectionMethod.Perspective, ZNear, ZFar, _fovy) { BackgroundColor = float4.One };
+            _simulatingCamPivotTransform = new Transform();
+            _camera = new Camera(ProjectionMethod.Perspective, ZNear, ZFar, _fovy) { BackgroundColor = float4.Zero };
+            //_camera = new Camera(ProjectionMethod.Orthographic, ZNear, ZFar, _fovy) { BackgroundColor = float4.Zero };
             var camNode = new SceneNode()
             {
                 Name = "SimulatingCamNode",
@@ -63,17 +64,17 @@ namespace FuseeApp
                     new SceneNode()
                     {
                         Name = "SimulatingCam",
-                        Components = new System.Collections.Generic.List<SceneComponent>()
+                        Components = new List<SceneComponent>()
                         {
-                            new Transform() { Translation = new float3(0, 2, -10) },
+                            new Transform() { Translation = new float3(0, 0, -2) },
                             _camera
-                            
+
                         }
                     }
                 },
-                Components = new System.Collections.Generic.List<SceneComponent>()
+                Components = new List<SceneComponent>()
                 {
-                    _camPivotTransform
+                    _simulatingCamPivotTransform
                 }
             };
             _camScene.Children.Add(camNode);
@@ -88,9 +89,52 @@ namespace FuseeApp
             _focalY = focalLengths[1];
 
             byte[] raw = new byte[this.Width * this.Height * 3];
-            Fusee.Base.Common.ImagePixelFormat format = new Fusee.Base.Common.ImagePixelFormat(Fusee.Base.Common.ColorFormat.RGB);
-            texture = new Texture(raw, this.Width, this.Height, format, false);
+            ImagePixelFormat format = new ImagePixelFormat(ColorFormat.RGB);
+            _texture = new Texture(raw, this.Width, this.Height, format, false);
 
+
+
+            // CANVAS
+            /*
+            float canvasHeight = Height;
+            float canvasWidth = Width;
+            var canvas = new CanvasNode(
+                "Canvas",
+                CanvasRenderMode.Screen,
+                new MinMaxRect
+                {
+                    Min = new float2(-canvasWidth / 2f, -canvasHeight / 2f),
+                    Max = new float2(canvasWidth / 2f, canvasHeight / 2f)
+                })
+            {
+                Children = new ChildList()
+                {
+                TextureNode.Create(
+                "Blt",
+                _texture,
+                GuiElementPosition.GetAnchors(AnchorPos.DownDownLeft),
+                GuiElementPosition.CalcOffsets(AnchorPos.DownDownLeft, new float2(0, 0), canvasHeight, canvasWidth, new float2(4, 4)),
+                float2.One)
+                }
+            };
+            canvas.AddComponent(MakeEffect.FromDiffuseSpecular((float4)ColorUint.Red));
+            canvas.AddComponent(new Plane());
+            var canvasNode = new SceneNode()
+            {
+                Components = new List<SceneComponent>()
+                        {
+                            new Transform()
+                            {
+                                Translation = new float3(0, 0, 0),
+                                Rotation = new float3(0, M.PiOver4, 0)
+                            }
+                        },
+                Children = new ChildList()
+                        {
+                            canvas
+                        }
+            };
+            */
             var quad = new SceneNode()
             {
                 Name = "Quad",
@@ -98,18 +142,27 @@ namespace FuseeApp
                 {
                     new Plane(),
                     new Transform() { Translation = new float3(0, 0, 0) },
-                    MakeEffect.FromUnlit(float4.One, texture)
+                    //MakeEffect.FromUnlit(float4.One, _texture),
+                    MakeEffect.Default()
 
                 }
             };
-
+            _mainCamPivotTransform = new Transform();
             var textureCam = new SceneNode()
             {
                 Name = "MainCamNode",
-                Components = new List<SceneComponent>()
+                Children = new ChildList()
                 {
-                    new Transform() { Translation = new float3(0, 0, -10), Rotation = new float3(0, (float)Math.PI/2, 0) },
-                    new Camera(ProjectionMethod.Orthographic, ZNear, 20f, _fovy) { BackgroundColor = float4.Zero }
+                    new SceneNode()
+                    {
+                        Name = "MainCam",
+                        Components = new List<SceneComponent>()
+                        {
+                            new Transform() { Translation = new float3(0, 0, -1) },
+                            new Camera(ProjectionMethod.Perspective, ZNear, ZFar, _fovy) { BackgroundColor = float4.Zero }
+
+                        }
+                    }
                 }
 
             };
@@ -144,7 +197,6 @@ namespace FuseeApp
 
             try
             {
-                Console.WriteLine("torch version: " + __version__);
                 Device device = cuda.is_available() ? CUDA : CPU;
 
                 _config = new Config();
@@ -180,7 +232,8 @@ namespace FuseeApp
 
         public override void Update()
         {
-            _camPivotTransform.RotationQuaternion = QuaternionF.FromEuler(_angleVert, _angleHorz, 0);
+            _simulatingCamPivotTransform.RotationQuaternion = QuaternionF.FromEuler(_angleVert, _angleHorz, 0);
+            //_mainCamPivotTransform.RotationQuaternion = QuaternionF.FromEuler(_angleVert, _angleHorz, 0);
 
             // Mouse and keyboard movement
             if (Keyboard.LeftRightAxis != 0 || Keyboard.UpDownAxis != 0)
@@ -219,7 +272,8 @@ namespace FuseeApp
             _angleHorz += _angleVelHorz;
             _angleVert += _angleVelVert;
 
-            if(currentStep <= stepsToTrain)
+
+            if (currentStep <= stepsToTrain)
             {
                 TrainStep();
                 if (currentStep == stepsToTrain)
@@ -230,22 +284,23 @@ namespace FuseeApp
             }
 
 
+
         }
 
         private void InferenceStep()
         {
             //pose
-            
+
             //float4 viewport;
             //float4x4 matrix = _camera.GetProjectionMat(this.Width, this.Height, out viewport);
 
             float4x4 matrix = float4x4.Zero;
-            matrix.Column1 = new float4(-0.999f , 0.004f , -0.013f, -0.05f);
+            matrix.Column1 = new float4(-0.999f, 0.004f, -0.013f, -0.05f);
             matrix.Column2 = new float4(-0.014f, -0.3f, 0.954f, 3.845f);
             matrix.Column3 = new float4(0f, 0.954f, 0.299f, 1.208f);
             matrix.Column4 = new float4(0f, 0f, 0f, 1f);
 
-            Tensor pose = torch.from_array(matrix.ToArray()).reshape(4,4);
+            Tensor pose = torch.from_array(matrix.ToArray()).reshape(4, 4);
 
             Tensor poseConverted = Utils.matrixToNGP(pose, _config.aabbScale, _config.offset);
 
@@ -261,9 +316,9 @@ namespace FuseeApp
             Tensor intrinsics = torch.from_array(intrinsicsArray);
 
             byte[] buffer = _trainer.inferenceStepRT(poseConverted, intrinsics, height: this.Height, width: this.Width, 1);
-            Fusee.Base.Common.ImagePixelFormat format = new Fusee.Base.Common.ImagePixelFormat(Fusee.Base.Common.ColorFormat.RGB);
+            ImagePixelFormat format = new ImagePixelFormat(ColorFormat.RGB);
             ImageData data = new ImageData(buffer, this.Width, this.Height, format);
-            texture.Blt(0, 0, data, width: this.Width, height: this.Height);
+            _texture.Blt(0, 0, data);
         }
         private void TrainStep()
         {
