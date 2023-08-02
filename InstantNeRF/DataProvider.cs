@@ -9,8 +9,6 @@ using System.Numerics;
 
 namespace InstantNeRF
 {
-
-
     public class DataProvider
     {
         private Device device;
@@ -18,6 +16,7 @@ namespace InstantNeRF
         private float downscale;
         private float[] offset;
         public float[] bgColor;
+        private float[,] initialPose;
         public int numRays;
         private int currentIndex;
         private string dataPath;
@@ -177,6 +176,11 @@ namespace InstantNeRF
                     }
                     Tensor image = useSynthetic ? getImageDataFromPNG(Path.Combine(dataPath, filePath + ".png")) : getImageDataFromJPG(Path.Combine(dataPath, filePath + ".jpg"));
                     image = Utils.srgbToLinear(image);
+
+                    if(counter == 0)
+                    {
+                        initialPose = mtx;
+                    }
                     Tensor transform = torch.from_array(mtx);
                     if (!useSynthetic)
                     {
@@ -209,8 +213,6 @@ namespace InstantNeRF
                         imageList.Add(image);
                         posesList.Add(transform);
                     }
-
-
                     counter++;
                 }
             }
@@ -327,6 +329,11 @@ namespace InstantNeRF
 
             return results;
 
+        }
+
+        public float[,] getStartingPose()
+        {
+            return this.initialPose;
         }
 
     }

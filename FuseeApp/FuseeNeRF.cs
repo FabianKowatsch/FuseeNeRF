@@ -55,7 +55,6 @@ namespace FuseeApp
             _camScene = new SceneContainer();
             _simulatingCamPivotTransform = new Transform();
             _camera = new Camera(ProjectionMethod.Perspective, ZNear, ZFar, _fovy) { BackgroundColor = float4.Zero };
-            //_camera = new Camera(ProjectionMethod.Orthographic, ZNear, ZFar, _fovy) { BackgroundColor = float4.Zero };
             var camNode = new SceneNode()
             {
                 Name = "SimulatingCamNode",
@@ -66,7 +65,7 @@ namespace FuseeApp
                         Name = "SimulatingCam",
                         Components = new List<SceneComponent>()
                         {
-                            new Transform() { Translation = new float3(0, 0, -2) },
+                            new Transform() { Translation = new float3(0, 0, 0) },
                             _camera
 
                         }
@@ -222,6 +221,7 @@ namespace FuseeApp
 
                 _trainer = trainer;
                 _dataProvider = trainData;
+
             }
             catch (Exception e)
             {
@@ -232,6 +232,11 @@ namespace FuseeApp
 
         public override void Update()
         {
+
+            if(currentStep == 0)
+            {
+                setInitialPose();
+            }
 
             Controls();
 
@@ -294,16 +299,9 @@ namespace FuseeApp
         {
             //pose
 
-            //float4 viewport;
-            //float4x4 matrix = _camera.GetProjectionMat(this.Width, this.Height, out viewport);
+            float[] matrix = _simulatingCamPivotTransform.Matrix.ToArray();
 
-            float4x4 matrix = float4x4.Zero;
-            matrix.Column1 = new float4(-0.999f, 0.004f, -0.013f, -0.05f);
-            matrix.Column2 = new float4(-0.014f, -0.3f, 0.954f, 3.845f);
-            matrix.Column3 = new float4(0f, 0.954f, 0.299f, 1.208f);
-            matrix.Column4 = new float4(0f, 0f, 0f, 1f);
-
-            Tensor pose = torch.from_array(matrix.ToArray()).reshape(4, 4);
+            Tensor pose = torch.from_array(matrix).reshape(4, 4);
 
             Tensor poseConverted = Utils.matrixToNGP(pose, _config.aabbScale, _config.offset);
 
@@ -328,6 +326,17 @@ namespace FuseeApp
             float loss = _trainer.trainStepRT(currentStep, _dataProvider);
             currentStep++;
 
+        }
+
+        private void setInitialPose()
+        {
+            float[,] startingPose = _dataProvider.getStartingPose();
+            float4x4 matrix = float4x4.Zero;
+            matrix.Row1 = new float4(startingPose[0,0], startingPose[0, 1], startingPose[0, 2], startingPose[0, 3]);
+            matrix.Row2 = new float4(startingPose[1, 0], startingPose[1, 1], startingPose[1, 2], startingPose[1, 3]);
+            matrix.Row3 = new float4(startingPose[2, 0], startingPose[2, 1], startingPose[2, 2], startingPose[2, 3]);
+            matrix.Row4 = new float4(startingPose[3, 0], startingPose[3, 1], startingPose[3, 2], startingPose[3, 3]);
+            _simulatingCamPivotTransform.Matrix = matrix;
         }
 
         // RenderAFrame is called once a frame
