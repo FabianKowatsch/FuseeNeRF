@@ -39,26 +39,25 @@ namespace InstantNeRF
                 this.lossScale = 1.0f;
             }
         }
-        public override Tensor forward(Tensor x)
+        public override Tensor forward(Tensor input)
         {
-            if (!x.is_cuda)
+            if (!input.is_cuda)
             {
                 Console.WriteLine("input must be a CUDA tensor");
-                x = x.cuda();
+                input = input.cuda();
             }
-            long batchSize = x.shape[0];
+            long batchSize = input.shape[0];
             long batchSizeGranularity = Convert.ToInt64(TcnnWrapper.batchSizeGranularity());
             long paddedBatchSize = (batchSize + batchSizeGranularity - 1) / batchSizeGranularity * batchSizeGranularity;
-            Tensor xPadded = (batchSize == paddedBatchSize) ? x : torch.nn.functional.pad(x, new long[4] { 0L, 0L, 0L, paddedBatchSize - batchSize });
+            Tensor inputPadded = (batchSize == paddedBatchSize) ? input : torch.nn.functional.pad(input, new long[4] { 0L, 0L, 0L, paddedBatchSize - batchSize });
 
             this.gradFnc = new AutogradFunctions.ModuleFunction(this.nativeTcnnMLP, this.lossScale);
 
-            Tensor output = this.gradFnc.Forward(
-                xPadded.to_type(torch.float32).contiguous(),
-                param.contiguous().nan_to_num());
+            Tensor output = this.gradFnc.Forward(inputPadded.to_type(torch.float32).contiguous(), param.contiguous().nan_to_num());
             output = output.slice(0L, 0L, batchSize, 1L);
             output = output.slice(1L, 0L, outputDims, 1L);
             output = FloatTensor(output);
+
             return output;
         }
         public Tensor backward(float gradScale)
@@ -72,19 +71,33 @@ namespace InstantNeRF
                 throw new Exception("must run forward pass before backward pass!");
             }
         }
-        public Tensor density(Tensor x)
+        public Tensor density(Tensor input)
         {
-            long batchSize = x.shape[0];
+            long batchSize = input.shape[0];
             long batchSizeGranularity = Convert.ToInt64(TcnnWrapper.batchSizeGranularity());
             long paddedBatchSize = (batchSize + batchSizeGranularity - 1) / batchSizeGranularity * batchSizeGranularity;
-            Tensor xPadded = (batchSize == paddedBatchSize) ? x : torch.nn.functional.pad(x, new long[4] { 0L, 0L, 0L, paddedBatchSize - batchSize });
-            Tensor output = this.nativeTcnnMLP.density(
-                xPadded.to_type(torch.float32).contiguous(),
-                param.contiguous().nan_to_num());
+            Tensor inputPadded = (batchSize == paddedBatchSize) ? input : torch.nn.functional.pad(input, new long[4] { 0L, 0L, 0L, paddedBatchSize - batchSize });
 
+            Tensor output = this.nativeTcnnMLP.density(inputPadded.to_type(torch.float32).contiguous(), param.contiguous().nan_to_num());
             output = output.slice(0L, 0L, batchSize, 1L);
             output = output.slice(1L, 0L, outputDimsDensity, 1L);
             output = FloatTensor(output);
+
+            return output;
+        }
+
+        public Tensor inference(Tensor input)
+        {
+            long batchSize = input.shape[0];
+            long batchSizeGranularity = Convert.ToInt64(TcnnWrapper.batchSizeGranularity());
+            long paddedBatchSize = (batchSize + batchSizeGranularity - 1) / batchSizeGranularity * batchSizeGranularity;
+            Tensor inputPadded = (batchSize == paddedBatchSize) ? input : torch.nn.functional.pad(input, new long[4] { 0L, 0L, 0L, paddedBatchSize - batchSize });
+
+            Tensor output = this.nativeTcnnMLP.inference(inputPadded.to_type(torch.float32).contiguous(), param.contiguous().nan_to_num());
+            output = output.slice(0L, 0L, batchSize, 1L);
+            output = output.slice(1L, 0L, outputDims, 1L);
+            output = FloatTensor(output);
+
             return output;
         }
 

@@ -18,6 +18,9 @@ namespace InstantNeRF
         public static extern void density(IntPtr module, IntPtr input, IntPtr parameters, IntPtr output);
 
         [DllImport("TcnnNerfApi.dll")]
+        public static extern void inference(IntPtr module, IntPtr input, IntPtr parameters, IntPtr output);
+
+        [DllImport("TcnnNerfApi.dll")]
         public static extern IntPtr initialParams(IntPtr module, ulong seed);
 
         [DllImport("TcnnNerfApi.dll")]
@@ -99,8 +102,13 @@ namespace InstantNeRF
 
             public (IntPtr ctx, Tensor output) forward(Tensor input, Tensor parameters)
             {
-                Tensor output = torch.empty(new long[] { input.size(0), (long)nOutputDims() } , parameters.dtype, device: input.device, requires_grad: parameters.requires_grad);  
-                IntPtr ctxHandle = TcnnWrapper.forward(handle, input.Handle, parameters.Handle, output.Handle);
+                Tensor output = torch.empty(new long[] { input.size(0), (long)nOutputDims() } , parameters.dtype, device: input.device, requires_grad: true); 
+                
+                IntPtr ctxHandle = IntPtr.Zero;
+                using (torch.no_grad())
+                {
+                    ctxHandle = TcnnWrapper.forward(handle, input.Handle, parameters.Handle, output.Handle);
+                }
                 return (ctxHandle, output);
             }
             public Tensor backward(IntPtr ctx, Tensor input, Tensor parameters, Tensor output, Tensor outputGrad)
@@ -113,6 +121,13 @@ namespace InstantNeRF
             {
                 Tensor output = torch.empty(new long[] { input.size(0), (long)nOutputDimsDensity() }, parameters.dtype, device: input.device);
                 TcnnWrapper.density(handle, input.Handle, parameters.Handle, output.Handle);
+                return output;
+            }
+
+            public Tensor inference(Tensor input, Tensor parameters)
+            {
+                Tensor output = torch.empty(new long[] { input.size(0), (long)nOutputDims() }, parameters.dtype, device: input.device);
+                TcnnWrapper.inference(handle, input.Handle, parameters.Handle, output.Handle);
                 return output;
             }
             public Tensor initialParams(ulong seed)

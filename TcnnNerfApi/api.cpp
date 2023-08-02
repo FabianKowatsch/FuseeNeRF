@@ -43,6 +43,10 @@ EXPORT_API void density(tcnnNerf::Module* module, torch::Tensor* input, torch::T
 {
     module->density(*input, *params, *output);
 }
+EXPORT_API void inference(tcnnNerf::Module* module, torch::Tensor* input, torch::Tensor* params, torch::Tensor* output)
+{
+    module->inference(*input, *params, *output);
+}
 EXPORT_API torch::Tensor* initialParams(tcnnNerf::Module* module, unsigned long seed)
 {
     CATCH_TENSOR(module->initial_params(static_cast<unsigned long long>(seed)));

@@ -29,30 +29,21 @@ namespace InstantNeRF
             this.renderer = new VolumeRenderer(bgColor);
             this.scaler = new GradScaler(gradScale);
         }
-        public Dictionary<string, Tensor> forward( Dictionary<string, Tensor> data, DisposeScope d) 
+        public Dictionary<string, Tensor> forward( Dictionary<string, Tensor> data) 
         {
-
             Console.WriteLine("-:-:- before sampling -:-:-");
-            Console.WriteLine("disposables before sampling: " + d.DisposablesCount);
-            Console.ReadLine();
 
             data = this.sampler.Sample(data, this.mlp);
 
             Console.WriteLine("-:-:- after sampling -:-:-");
-            Console.WriteLine("disposables after sampling: " + d.DisposablesCount);
-            Console.ReadLine();
 
-            data = this.mlp.forward(data);
+            data = this.mlp.forward(data, !mlp.training);
             
             Console.WriteLine("-:-:- after mlp -:-:-");
-            Console.WriteLine("disposables afetr mlp: " + d.DisposablesCount);
-            Console.ReadLine();
 
             data = this.renderer.forward(sampler, data);
 
             Console.WriteLine("-:-:- after renderer -:-:-");
-            Console.WriteLine("disposables after renderer: " + d.DisposablesCount);
-            Console.ReadLine();
 
             return data;
         }
@@ -62,7 +53,7 @@ namespace InstantNeRF
             sampler.train();
             mlp.train();
             renderer.train();
-            Dictionary<string, Tensor> result = forward(data, d);
+            Dictionary<string, Tensor> result = forward(data);
             data["alpha"].detach_();
             Tensor loss = Metrics.HuberLoss(result["rgb"], data["gt"]);
             //loss = loss * 5;
@@ -88,15 +79,12 @@ namespace InstantNeRF
             sampler.eval();
             mlp.eval();
             renderer.eval();
-            using (var d = torch.NewDisposeScope())
-            {
-                Dictionary<string, Tensor> result = this.forward(data, d);
 
-                return result["rgb"];
-            }
+            Dictionary<string, Tensor> result = this.forward(data);
 
+            return result["rgb"];
         }
-        public Dictionary<string, Tensor> batchifyForward( Dictionary<string, Tensor> data, DisposeScope d) //smaller batches to avoid memory problems
+        public Dictionary<string, Tensor> batchifyForward( Dictionary<string, Tensor> data) //smaller batches to avoid memory problems
         {
             Dictionary<string, Tensor> totalData = new Dictionary<string, Tensor>();
             for ( var i = 0; i < wantedBatchSize; i = i + chunkSIze ) 
@@ -115,7 +103,7 @@ namespace InstantNeRF
                     }
                 }
 
-                Dictionary<string, Tensor> result = this.forward(chunk, d);
+                Dictionary<string, Tensor> result = this.forward(chunk);
 
                 foreach (var key in result.Keys)
                 {

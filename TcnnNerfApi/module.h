@@ -18,6 +18,7 @@ namespace tcnnNerf {
 		tcnn::cpp::Context fwd(torch::Tensor input, torch::Tensor params, torch::Tensor output);
 		void bwd(const tcnn::cpp::Context& ctx, torch::Tensor input, torch::Tensor params, torch::Tensor output, torch::Tensor dL_doutput, torch::Tensor dL_dparams);
 		void density(torch::Tensor input, torch::Tensor params, torch::Tensor output);
+		void inference(torch::Tensor input, torch::Tensor params, torch::Tensor output);
 		torch::Tensor initial_params(size_t seed);
 		uint32_t n_input_dims() const;
 		uint32_t n_input_dims_density() const;

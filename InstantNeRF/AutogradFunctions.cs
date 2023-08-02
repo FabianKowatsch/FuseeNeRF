@@ -49,7 +49,7 @@ namespace InstantNeRF
 
                     paramsGrad = this.context.tcnnModule.backward(this.context.nativeCtx, input, parameters, output, scaledGrad);
 
-                    paramsGrad = (paramsGrad.numel() == 0L) ? paramsGrad : paramsGrad / this.context.lossScale / gradScale;
+                    paramsGrad = (paramsGrad.numel() == 0L) ? paramsGrad : paramsGrad / gradScale;
                     //paramsGrad = (paramsGrad.numel() == 0L) ? paramsGrad : paramsGrad / this.context.lossScale / gradScale;
 
                 }

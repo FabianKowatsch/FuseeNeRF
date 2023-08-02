@@ -30,49 +30,32 @@ namespace InstantNeRF
 
         }
 
-        public Dictionary<string, Tensor> forward(Dictionary<string, Tensor> data)
+        public Dictionary<string, Tensor> forward(Dictionary<string, Tensor> data, bool inference = true)
         {
-            long batchSize = data["positions"].size(0);
+            Tensor positions = data["positions"];
+            Tensor directions = data["directions"];
+            long batchSize = positions.size(0);
+            Tensor input = torch.cat(new List<Tensor>() { positions, directions }, dim: 1);
 
-            Tensor outputsFlat;
-            if (this.training)
+            Tensor output;
+            if (inference)
             {
-               outputsFlat = this.runMlpForward(data["positions"], data["directions"]);
+                Console.WriteLine("I N F E R E N C E");
+                output = tcnnMLP.inference(input);
             }
             else
             {
-                outputsFlat = this.runMlpInference(data["positions"], data["directions"]);
-
+                Console.WriteLine("F O R W A R D");
+                output = tcnnMLP.forward(input);
             }
-            
+
+            Tensor color = output.slice(1, 0, 3, 1);
+            Tensor sigma = output.slice(1, 3, 4, 1);
+
+            Tensor outputsFlat = torch.cat(new List<Tensor>() { color, sigma }, -1).to(torch.float32).contiguous();
+
             data.Add("raw", outputsFlat.reshape(batchSize, outputsFlat.size(-1)));
             return data;
-        }
-
-        public Tensor runMlpForward(Tensor positions, Tensor directions)
-        {
-            Console.WriteLine("F O R W A R D");
-
-            Tensor input = torch.cat(new List<Tensor>() { positions, directions }, dim: 1);
-            Tensor output = tcnnMLP.forward(input);
-            Tensor color = output.slice(1, 0, 3, 1);
-            Tensor sigma = output.slice(1, 3, 4, 1);
-
-            Tensor result = torch.cat(new List<Tensor>() { color, sigma }, -1).to(torch.float32).contiguous();
-            return result;
-        }
-
-        public Tensor runMlpInference(Tensor positions, Tensor directions)
-        {
-            Console.WriteLine("I N F E R E N C E");
-            Tensor input = torch.cat(new List<Tensor>() { positions, directions }, dim: 1);
-            Tensor output = tcnnMLP.forward(input);
-            Tensor color = output.slice(1, 0, 3, 1);
-            Tensor sigma = output.slice(1, 3, 4, 1);
-
-            Tensor result = torch.cat(new List<Tensor>() { color, sigma }, -1).to(torch.float32).contiguous();
-
-            return result;
         }
 
         public Tensor density(Tensor positionsFlat)
@@ -86,7 +69,7 @@ namespace InstantNeRF
 
         public Tensor backward(float gradScale)
         {
-            Console.WriteLine("- - BACKWARD - -");
+            Console.WriteLine("B A C K W A R D");
             return tcnnMLP.backward(gradScale);
         }
 

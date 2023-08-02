@@ -38,7 +38,7 @@ namespace FuseeApp
         private float _focalY;
         private Texture _texture;
         private int currentStep = 0;
-        private readonly int stepsToTrain = 5;
+        private readonly int stepsToTrain = 8;
         private DataProvider _dataProvider;
         private Config _config;
         private Transform _simulatingCamPivotTransform;
