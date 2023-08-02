@@ -15,9 +15,9 @@ namespace tcnnNerf {
 		Module(NerfModule* module) {
 			m_module = std::unique_ptr<NerfModule>(module);
 		}
-		std::tuple<tcnn::cpp::Context, torch::Tensor> fwd(torch::Tensor input, torch::Tensor params);
-		std::tuple<torch::Tensor, torch::Tensor> bwd(const tcnn::cpp::Context& ctx, torch::Tensor input, torch::Tensor params, torch::Tensor output, torch::Tensor dL_doutput);
-		torch::Tensor density(torch::Tensor input, torch::Tensor params);
+		tcnn::cpp::Context fwd(torch::Tensor input, torch::Tensor params, torch::Tensor output);
+		void bwd(const tcnn::cpp::Context& ctx, torch::Tensor input, torch::Tensor params, torch::Tensor output, torch::Tensor dL_doutput, torch::Tensor dL_dparams);
+		void density(torch::Tensor input, torch::Tensor params, torch::Tensor output);
 		torch::Tensor initial_params(size_t seed);
 		uint32_t n_input_dims() const;
 		uint32_t n_input_dims_density() const;

@@ -119,30 +119,18 @@ namespace InstantNeRF
             using (var d = torch.NewDisposeScope())
             {
                 Dictionary<string, Tensor> data = dataProvider.getTrainData();
-                this.globalStep++;
 
-                Tensor loss = this.network.trainStep(data);
+                Tensor loss = this.network.trainStep(data, optimizer, d);
 
                 //torch.nn.utils.clip_grad_norm_(network.mlp.parameters(), 2.0);
 
-                this.network.scaler.step(optimizer);
-                /*
-                Console.WriteLine("----PARAMS----");
-                foreach (var param in network.mlp.getParams())
-                {
-                    param.print();
-                }
-                */
                 float lossValue = loss.item<float>();
                 totalLoss += lossValue;
 
                 Console.WriteLine("__________________________________");
                 Console.WriteLine("STEP: " + this.globalStep);
-                Console.WriteLine("__________________________________");
-                Console.WriteLine("disposables: " + d.DisposablesCount);
                 d.DisposeEverything();
-                Console.WriteLine("disposables: " + d.DisposablesCount);
-
+                this.globalStep++;
             }
             return totalLoss;
         }

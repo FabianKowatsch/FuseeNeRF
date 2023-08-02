@@ -29,42 +29,19 @@ inline torch::Tensor* ResultTensor(const at::Tensor& res)
         return NULL;
 }
 
-struct Handle2D {
-    void* ptr1;
-    void* ptr2;
-};
-
-EXPORT_API Handle2D forward(tcnnNerf::Module* module, torch::Tensor* input, torch::Tensor* params)
+EXPORT_API tcnnNerf::ContextWrapper* forward(tcnnNerf::Module* module, torch::Tensor* input, torch::Tensor* params, torch::Tensor* output)
 {
-    auto result = module->fwd(*input, *params);
-    Handle2D tuple = Handle2D();
-
-    tcnnNerf::ContextWrapper* ctxWrapper = new tcnnNerf::ContextWrapper(std::move(std::get<0>(result).ctx));
-
-    tuple.ptr1 = ctxWrapper;
-    CATCH(torch::Tensor output = std::get<1>(result);
-    tuple.ptr2 = ResultTensor(output);
-    return tuple;
-    );
+    tcnn::cpp::Context context = module->fwd(*input, *params, *output);
+    tcnnNerf::ContextWrapper* ctxWrapper = new tcnnNerf::ContextWrapper(std::move(context.ctx));
+    return ctxWrapper;
 }
-EXPORT_API Handle2D backward(tcnnNerf::Module* module, tcnnNerf::ContextWrapper* ctxWrapper, torch::Tensor* input, torch::Tensor* params, torch::Tensor* output, torch::Tensor* outputGrad)
+EXPORT_API void backward(tcnnNerf::Module* module, tcnnNerf::ContextWrapper* ctxWrapper, torch::Tensor* input, torch::Tensor* params, torch::Tensor* output, torch::Tensor* outputGrad, torch::Tensor* paramsGrad)
 {
-    auto result = module->bwd(ctxWrapper->ctx, *input, *params, *output, *outputGrad);
-    Handle2D tuple = Handle2D();
-    CATCH(torch::Tensor inputGrad = std::get<0>(result);
-    torch::Tensor paramsGrad = std::get<1>(result);
-    tuple.ptr1 = ResultTensor(inputGrad);
-    tuple.ptr2 = ResultTensor(paramsGrad);
-    return tuple;
-    );
+    module->bwd(ctxWrapper->ctx, *input, *params, *output, *outputGrad, *paramsGrad);
 }
-EXPORT_API torch::Tensor* density(tcnnNerf::Module* module, torch::Tensor* input, torch::Tensor* params)
+EXPORT_API void density(tcnnNerf::Module* module, torch::Tensor* input, torch::Tensor* params, torch::Tensor* output)
 {
-    const torch::Tensor outputTensor = module->density(*input, *params);
-    CATCH(
-        torch::Tensor* output = ResultTensor(outputTensor);
-        return output;
-    );
+    module->density(*input, *params, *output);
 }
 EXPORT_API torch::Tensor* initialParams(tcnnNerf::Module* module, unsigned long seed)
 {

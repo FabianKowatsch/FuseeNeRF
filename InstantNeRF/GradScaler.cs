@@ -30,21 +30,18 @@ namespace InstantNeRF
             return x * this.scaleFactor;
         }
 
-        public void step(Optimizer optimizer)
+        public void step(Optimizer optimizer, Tensor gradients)
         {
-
-
             Parameter parameters = optimizer.getParameter();
             growthTracker++;
 
-            if (isInvalid(parameters.grad()!))
+            if (isInvalid(gradients))
             {
                 wasNaN = true;
                 growthTracker = 0;
             }
 
-
-            optimizer.step();
+            optimizer.step(gradients);
 
             growthTracker++;
 
@@ -53,7 +50,6 @@ namespace InstantNeRF
                 wasNaN = true;
                 growthTracker = 0;
             }
-
         }
         public void update()
         {

@@ -7,21 +7,15 @@ namespace InstantNeRF
 {
     public static class TcnnWrapper
     {
-        [StructLayout(LayoutKind.Sequential)]
-        public struct Handle2D
-        {
-            public IntPtr handle1;
-            public IntPtr handle2;
-        }
 
         [DllImport("TcnnNerfApi.dll")]
-        public static extern Handle2D forward(IntPtr module, IntPtr input, IntPtr parameters);
+        public static extern IntPtr forward(IntPtr module, IntPtr input, IntPtr parameters, IntPtr output);
 
         [DllImport("TcnnNerfApi.dll")]
-        public static extern Handle2D backward(IntPtr module, IntPtr ctx, IntPtr input, IntPtr parameters, IntPtr output, IntPtr outputGrad);
+        public static extern void backward(IntPtr module, IntPtr ctx, IntPtr input, IntPtr parameters, IntPtr output, IntPtr outputGrad, IntPtr paramsGrad);
 
         [DllImport("TcnnNerfApi.dll")]
-        public static extern IntPtr density(IntPtr module, IntPtr input, IntPtr parameters);
+        public static extern void density(IntPtr module, IntPtr input, IntPtr parameters, IntPtr output);
 
         [DllImport("TcnnNerfApi.dll")]
         public static extern IntPtr initialParams(IntPtr module, ulong seed);
@@ -105,20 +99,21 @@ namespace InstantNeRF
 
             public (IntPtr ctx, Tensor output) forward(Tensor input, Tensor parameters)
             {
-                Handle2D tuple = TcnnWrapper.forward(handle, input.Handle, parameters.Handle);
-                Tensor output = Tensor.UnsafeCreateTensor(tuple.handle2);
-                return (tuple.handle1, output);
+                Tensor output = torch.empty(new long[] { input.size(0), (long)nOutputDims() } , parameters.dtype, device: input.device, requires_grad: parameters.requires_grad);  
+                IntPtr ctxHandle = TcnnWrapper.forward(handle, input.Handle, parameters.Handle, output.Handle);
+                return (ctxHandle, output);
             }
-            public (Tensor inputGrad, Tensor paramsGrad) backward(IntPtr ctx, Tensor input, Tensor parameters, Tensor output, Tensor outputGrad)
+            public Tensor backward(IntPtr ctx, Tensor input, Tensor parameters, Tensor output, Tensor outputGrad)
             {
-                Handle2D tuple = TcnnWrapper.backward(handle, ctx, input.Handle, parameters.Handle, output.Handle, outputGrad.Handle);
-                Tensor inputGrad = Tensor.UnsafeCreateTensor(tuple.handle1);
-                Tensor paramsGrad = Tensor.UnsafeCreateTensor(tuple.handle2);
-                return (inputGrad, paramsGrad);
+                Tensor paramsGrad = torch.empty_like(parameters);
+                TcnnWrapper.backward(handle, ctx, input.Handle, parameters.Handle, output.Handle, outputGrad.Handle, paramsGrad.Handle);
+                return paramsGrad;
             }
             public Tensor density(Tensor input, Tensor parameters)
             {
-                return Tensor.UnsafeCreateTensor(TcnnWrapper.density(handle, input.Handle, parameters.Handle));
+                Tensor output = torch.empty(new long[] { input.size(0), (long)nOutputDimsDensity() }, parameters.dtype, device: input.device);
+                TcnnWrapper.density(handle, input.Handle, parameters.Handle, output.Handle);
+                return output;
             }
             public Tensor initialParams(ulong seed)
             {

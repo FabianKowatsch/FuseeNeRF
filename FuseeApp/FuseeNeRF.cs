@@ -232,6 +232,23 @@ namespace FuseeApp
 
         public override void Update()
         {
+
+            Controls();
+
+            if (currentStep <= stepsToTrain)
+            {
+                TrainStep();
+                if (currentStep == stepsToTrain)
+                {
+                    InferenceStep();
+                    Console.ReadLine();
+                }
+            }
+
+        }
+
+        private void Controls()
+        {
             _simulatingCamPivotTransform.RotationQuaternion = QuaternionF.FromEuler(_angleVert, _angleHorz, 0);
             //_mainCamPivotTransform.RotationQuaternion = QuaternionF.FromEuler(_angleVert, _angleHorz, 0);
 
@@ -271,20 +288,6 @@ namespace FuseeApp
 
             _angleHorz += _angleVelHorz;
             _angleVert += _angleVelVert;
-
-
-            if (currentStep <= stepsToTrain)
-            {
-                TrainStep();
-                if (currentStep == stepsToTrain)
-                {
-                    InferenceStep();
-                    Console.ReadLine();
-                }
-            }
-
-
-
         }
 
         private void InferenceStep()
@@ -322,7 +325,7 @@ namespace FuseeApp
         }
         private void TrainStep()
         {
-            Tensor loss = _trainer.trainStepRT(currentStep, _dataProvider);
+            float loss = _trainer.trainStepRT(currentStep, _dataProvider);
             currentStep++;
 
         }

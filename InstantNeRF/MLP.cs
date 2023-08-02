@@ -84,10 +84,10 @@ namespace InstantNeRF
             return sigma;
         }
 
-        public void backward(float gradScale)
+        public Tensor backward(float gradScale)
         {
             Console.WriteLine("- - BACKWARD - -");
-            tcnnMLP.backward(gradScale);
+            return tcnnMLP.backward(gradScale);
         }
 
         public List<Parameter> getParams()

@@ -28,27 +28,31 @@ namespace tcnnNerf {
 		}
 	}
 
-	std::tuple<tcnn::cpp::Context, torch::Tensor> Module::fwd(torch::Tensor input, torch::Tensor params) {
+	tcnn::cpp::Context Module::fwd(torch::Tensor input, torch::Tensor params, torch::Tensor output) {
 
 		CHECK_INPUT(input);
 		CHECK_INPUT(params);
+		CHECK_INPUT(output);
 
 		// Types
 		CHECK_THROW(input.scalar_type() == torch::kFloat32);
 		CHECK_THROW(params.scalar_type() == c10_param_precision());
+		CHECK_THROW(output.scalar_type() == c10_output_precision());
 
 		// Sizes
 		CHECK_THROW(input.size(1) == n_input_dims());
 		CHECK_THROW(params.size(0) == n_params());
+		CHECK_THROW(output.size(1) == n_output_dims());
 		// Device
 		at::Device device = input.device();
 		CHECK_THROW(device == params.device());
+		CHECK_THROW(device == output.device());
 
 		const at::cuda::CUDAGuard device_guard{ device };
 		cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
 		uint32_t batch_size = (uint32_t)input.size(0);
-		torch::Tensor output = torch::empty({ batch_size, n_output_dims() }, torch::TensorOptions().dtype(c10_output_precision()).device(device).requires_grad(params.requires_grad()));
+		//torch::Tensor output = torch::empty({ batch_size, n_output_dims() }, torch::TensorOptions().dtype(c10_output_precision()).device(device).requires_grad(params.requires_grad()));
 
 		tcnn::cpp::Context ctx;
 
@@ -58,10 +62,10 @@ namespace tcnnNerf {
 		else {
 			ctx = m_module->forward(stream, batch_size, input.data_ptr<float>(), void_data_ptr(output), void_data_ptr(params), input.requires_grad());
 		}
-		return { std::move(ctx), output };
+		return ctx;
 	}
 
-	std::tuple<torch::Tensor, torch::Tensor> Module::bwd(const tcnn::cpp::Context& ctx, torch::Tensor input, torch::Tensor params, torch::Tensor output, torch::Tensor dL_doutput) {
+	void Module::bwd(const tcnn::cpp::Context& ctx, torch::Tensor input, torch::Tensor params, torch::Tensor output, torch::Tensor dL_doutput, torch::Tensor dL_dparams) {
 		if (!ctx.ctx) {
 			throw std::runtime_error{ "Module::bwd: called with invalid context. fwd likely (mistakenly) ran in inference mode." };
 		}
@@ -70,12 +74,14 @@ namespace tcnnNerf {
 		CHECK_INPUT(params);
 		CHECK_INPUT(output);
 		CHECK_INPUT(dL_doutput);
+		CHECK_INPUT(dL_dparams);
 
 		// Types
 		CHECK_THROW(input.scalar_type() == torch::kFloat32);
 		CHECK_THROW(params.scalar_type() == c10_param_precision());
 		CHECK_THROW(output.scalar_type() == c10_output_precision());
 		CHECK_THROW(dL_doutput.scalar_type() == c10_output_precision());
+		CHECK_THROW(dL_dparams.scalar_type() == c10_param_precision());
 
 		// Sizes
 		CHECK_THROW(input.size(1) == n_input_dims());
@@ -83,34 +89,36 @@ namespace tcnnNerf {
 		CHECK_THROW(params.size(0) == n_params());
 		CHECK_THROW(output.size(0) == input.size(0));
 		CHECK_THROW(dL_doutput.size(0) == input.size(0));
+		CHECK_THROW(dL_dparams.size(0) == n_params());
 
 		// Device
 		at::Device device = input.device();
 		CHECK_THROW(device == params.device());
 		CHECK_THROW(device == output.device());
 		CHECK_THROW(device == dL_doutput.device());
+		CHECK_THROW(device == dL_dparams.device());
 
 		const at::cuda::CUDAGuard device_guard{ device };
 		cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
 		uint32_t batch_size = (uint32_t)input.size(0);
 
-
-		torch::Tensor dL_dinput;
+		/*
+		//torch::Tensor dL_dinput;
 		if (input.requires_grad()) {
 			dL_dinput = torch::empty({ batch_size, input.size(1) }, torch::TensorOptions().dtype(torch::kFloat32).device(device));
 		}
-		torch::Tensor dL_dparams;
+		//torch::Tensor dL_dparams;
 		if (params.requires_grad()) {
 			dL_dparams = torch::empty({ n_params() }, torch::TensorOptions().dtype(c10_param_precision()).device(device));
 		}
-
-		if (input.requires_grad() || params.requires_grad()) {
+		*/
+		if (params.requires_grad()) {
 			m_module->backward(
 				stream,
 				ctx,
 				batch_size,
-				input.requires_grad() ? dL_dinput.data_ptr<float>() : nullptr,
+				nullptr,
 				void_data_ptr(dL_doutput),
 				params.requires_grad() ? void_data_ptr(dL_dparams) : nullptr,
 				input.data_ptr<float>(),
@@ -118,33 +126,35 @@ namespace tcnnNerf {
 				void_data_ptr(params)
 			);
 		}
-		return { dL_dinput, dL_dparams };
 	}
 
-	 torch::Tensor Module::density(torch::Tensor input, torch::Tensor params) {
+	 void Module::density(torch::Tensor input, torch::Tensor params, torch::Tensor output) {
 
 		CHECK_INPUT(input);
 		CHECK_INPUT(params);
+		CHECK_INPUT(output);
 
 		// Types
 		CHECK_THROW(input.scalar_type() == torch::kFloat32);
 		CHECK_THROW(params.scalar_type() == c10_param_precision());
+		CHECK_THROW(output.scalar_type() == c10_output_precision());
 
 		// Sizes
 		CHECK_THROW(input.size(1) == n_input_dims_density());
 		CHECK_THROW(params.size(0) == n_params());
+		CHECK_THROW(output.size(1) == n_output_dims_density());
 		// Device
 		at::Device device = input.device();
 		CHECK_THROW(device == params.device());
+		CHECK_THROW(device == output.device());
 
 		const at::cuda::CUDAGuard device_guard{ device };
 		cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
 		uint32_t batch_size = (uint32_t)input.size(0);
-		torch::Tensor output = torch::empty({ batch_size, n_output_dims_density() }, torch::TensorOptions().dtype(c10_output_precision()).device(device).requires_grad(params.requires_grad()));
+		//torch::Tensor output = torch::empty({ batch_size, n_output_dims_density() }, torch::TensorOptions().dtype(c10_output_precision()).device(device).requires_grad(params.requires_grad()));
 
 		m_module->density(stream, batch_size, input.data_ptr<float>(), void_data_ptr(output), void_data_ptr(params));
-		return output;
 	}
 
 	torch::Tensor Module::initial_params(size_t seed) {

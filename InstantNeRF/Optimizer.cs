@@ -21,10 +21,9 @@ namespace InstantNeRF
             allocate(mlp.getHandle());
         }
 
-        public void step()
+        public void step(Tensor gradients)
         {
             float lossScale = param.dtype == float16 ? 128.0f : 1.0f;
-            Tensor gradients = param.grad() ?? torch.empty_like(param);
             TcnnWrapper.step(handle, lossScale, param.Handle, paramFP.Handle, gradients.Handle);
         }
 

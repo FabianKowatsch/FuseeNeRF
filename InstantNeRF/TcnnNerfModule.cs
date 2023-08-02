@@ -61,11 +61,15 @@ namespace InstantNeRF
             output = FloatTensor(output);
             return output;
         }
-        public void backward(float gradScale)
+        public Tensor backward(float gradScale)
         {
             if (this.gradFnc != null)
             {
-                this.gradFnc.Backward(gradScale);
+               return this.gradFnc.Backward(gradScale);
+            }
+            else
+            {
+                throw new Exception("must run forward pass before backward pass!");
             }
         }
         public Tensor density(Tensor x)
