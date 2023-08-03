@@ -120,7 +120,7 @@ namespace InstantNeRF
             {
                 Dictionary<string, Tensor> data = dataProvider.getTrainData();
 
-                Tensor loss = this.network.trainStep(data, optimizer, d);
+                Tensor loss = this.network.trainStep(data, optimizer);
 
                 //torch.nn.utils.clip_grad_norm_(network.mlp.parameters(), 2.0);
 
@@ -131,6 +131,7 @@ namespace InstantNeRF
                 Console.WriteLine("STEP: " + this.globalStep);
                 d.DisposeEverything();
                 this.globalStep++;
+                TcnnWrapper.freeTemporaryMemory();
             }
             return totalLoss;
         }

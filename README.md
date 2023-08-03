@@ -16,17 +16,30 @@ This Project aims to provide an executable application for rendering Neural Radi
     "datasetType": "synthetic",
     "aabbMin": 0.0,
     "aabbMax": 1.0,
-    "aabbScale":  0.33,
+    "aabbScale": 0.33,
     "offset": [ 0.5, 0.5, 0.5 ],
-    "bgColor": [1.0, 1.0, 1.0],
+    "bgColor": [ 1.0, 1.0, 1.0 ],
     "imageDownscale": 2.0,
     "nRays": 2048,
-    "learningRate": 0.01,
-    "epsilon": 1e-15,
-    "beta1": 0.9,
-    "beta2": 0.99,
-    "weightDecay": 0.95,
-    "gradScale":  128.0,
+    "gradScale": 128.0,
+    "optimizerCfg": {
+        "otype": "Ema",
+        "decay": 0.95,
+        "nested": {
+            "otype": "ExponentialDecay",
+            "decay_start": 20000,
+            "decay_interval": 10000,
+            "decay_base": 0.33,
+            "nested": {
+                "otype": "Adam",
+                "learning_rate": 1e-2,
+                "beta1": 0.9,
+                "beta2": 0.99,
+                "epsilon": 1e-15,
+                "l2_reg": 1e-6
+                }
+            }
+        },
     }
 ```
 - rebuild the Solution or just the FuseeNeRF project for *Release x64* and launch \FuseeNeRF\Build\x64\Release\net7.0-windows\FuseeApp.exe

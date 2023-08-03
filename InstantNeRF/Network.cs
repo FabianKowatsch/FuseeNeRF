@@ -48,7 +48,7 @@ namespace InstantNeRF
             return data;
         }
 
-        public Tensor trainStep( Dictionary<string, Tensor> data, Optimizer optimizer, DisposeScope d)
+        public Tensor trainStep( Dictionary<string, Tensor> data, Optimizer optimizer)
         {
             sampler.train();
             mlp.train();
@@ -68,10 +68,6 @@ namespace InstantNeRF
             Tensor gradients = mlp.backward(scaler.getScale());
 
             scaler.step(optimizer, gradients);
-
-            Console.WriteLine("disposables after mlp.backward(): " + d.DisposablesCount);
-            Console.ReadLine();
-
             return loss;
         }
         public Tensor testStep(Dictionary<string, Tensor> data)

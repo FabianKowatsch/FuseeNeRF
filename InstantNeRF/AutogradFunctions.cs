@@ -19,15 +19,15 @@ namespace InstantNeRF
             public Tensor Forward(Tensor input, Tensor parameters)
             {
                 (IntPtr nativeCtx, Tensor output) = this.context.tcnnModule.forward(input, parameters);
-                this.context.saveForBackward(new List<Tensor> { input, parameters, output });
+                this.context.saveForBackward(new List<Tensor> { input, output });
                 this.context.nativeCtx = nativeCtx;
                 return output;
             }
 
-            public Tensor Backward(float gradScale)
+            public Tensor Backward(float gradScale, Tensor parameters)
             {
 
-                Tensor output = this.context.savedTensors[2];
+                Tensor output = this.context.savedTensors[1];
                 Tensor outputGrad = output.grad() ?? torch.empty(0);
                 if (outputGrad.numel() == 0L)
                 {
@@ -39,7 +39,6 @@ namespace InstantNeRF
                     outputGrad = outputGrad.cuda();
                 }
                 Tensor input = this.context.savedTensors[0];
-                Tensor parameters = this.context.savedTensors[1];
                 Tensor paramsGrad;
 
                 using (torch.no_grad())

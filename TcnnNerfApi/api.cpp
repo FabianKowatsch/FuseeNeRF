@@ -38,6 +38,7 @@ EXPORT_API tcnnNerf::ContextWrapper* forward(tcnnNerf::Module* module, torch::Te
 EXPORT_API void backward(tcnnNerf::Module* module, tcnnNerf::ContextWrapper* ctxWrapper, torch::Tensor* input, torch::Tensor* params, torch::Tensor* output, torch::Tensor* outputGrad, torch::Tensor* paramsGrad)
 {
     module->bwd(ctxWrapper->ctx, *input, *params, *output, *outputGrad, *paramsGrad);
+    delete ctxWrapper;
 }
 EXPORT_API void density(tcnnNerf::Module* module, torch::Tensor* input, torch::Tensor* params, torch::Tensor* output)
 {

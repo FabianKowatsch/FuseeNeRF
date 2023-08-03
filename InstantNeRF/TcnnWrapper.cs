@@ -103,18 +103,25 @@ namespace InstantNeRF
             public (IntPtr ctx, Tensor output) forward(Tensor input, Tensor parameters)
             {
                 Tensor output = torch.empty(new long[] { input.size(0), (long)nOutputDims() } , parameters.dtype, device: input.device, requires_grad: true); 
-                
                 IntPtr ctxHandle = IntPtr.Zero;
+                Console.WriteLine("before fwd");
+                Console.ReadLine();          
                 using (torch.no_grad())
                 {
                     ctxHandle = TcnnWrapper.forward(handle, input.Handle, parameters.Handle, output.Handle);
                 }
+                Console.WriteLine("after fwd");
+                Console.ReadLine();
                 return (ctxHandle, output);
             }
             public Tensor backward(IntPtr ctx, Tensor input, Tensor parameters, Tensor output, Tensor outputGrad)
             {
                 Tensor paramsGrad = torch.empty_like(parameters);
+                Console.WriteLine("before bwd");
+                Console.ReadLine();
                 TcnnWrapper.backward(handle, ctx, input.Handle, parameters.Handle, output.Handle, outputGrad.Handle, paramsGrad.Handle);
+                Console.WriteLine("after bwd");
+                Console.ReadLine();
                 return paramsGrad;
             }
             public Tensor density(Tensor input, Tensor parameters)

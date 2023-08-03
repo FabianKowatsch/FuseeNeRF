@@ -43,6 +43,9 @@ namespace tcnnNerf {
 		ContextWrapper(std::unique_ptr<tcnn::Context> context) {
 			ctx = { std::move(context) };
 		}
+		~ContextWrapper() {
+			ctx.ctx.reset();
+		}
 		tcnn::cpp::Context ctx;
 	};
 }

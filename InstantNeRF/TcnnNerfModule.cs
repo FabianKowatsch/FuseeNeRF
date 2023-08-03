@@ -64,7 +64,7 @@ namespace InstantNeRF
         {
             if (this.gradFnc != null)
             {
-               return this.gradFnc.Backward(gradScale);
+               return this.gradFnc.Backward(gradScale, param.contiguous().nan_to_num());
             }
             else
             {
