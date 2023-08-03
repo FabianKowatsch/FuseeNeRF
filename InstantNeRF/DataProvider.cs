@@ -97,8 +97,6 @@ namespace InstantNeRF
                 this.images = this.images.to(this.device);
             }
             this.batchSize = images.size(0);
-            Utils.printDims(this.images, "images");
-            Console.WriteLine("test_alpha:" + this.images[0, 0, 0 ,3].item<float>());
 
             Tensor rays = Utils.loadRays(this.poses, this.images, this.intrinsics, width, height);
 
@@ -294,7 +292,8 @@ namespace InstantNeRF
 
         public Dictionary<string, Tensor> getTrainData() 
         {
-            if(this.currentIndex + numRays > this.raysAndRGBS.size(0))
+            Console.WriteLine("current index: " + this.currentIndex);
+            if (this.currentIndex + numRays > this.raysAndRGBS.size(0))
                 this.currentIndex = 0;
 
             int startingIndex = this.currentIndex;

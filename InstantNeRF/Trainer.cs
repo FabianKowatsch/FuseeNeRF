@@ -103,7 +103,6 @@ namespace InstantNeRF
                     //Tensor image = ByteTensor(imageFloat * 255);
                     Utils.printDims(imageFloat, "imageFloat");
                     Utils.printMean(imageFloat, "imageFloat");
-                    Utils.printFirstNValues(imageFloat, 3, "imageFloat");
                     Tensor image = ByteTensor(Utils.linearToSrgb(imageFloat) * 255).to(CPU);
                     byte[] buffer = image.data<byte>().ToArray();
 
