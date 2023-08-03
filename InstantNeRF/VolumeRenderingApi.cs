@@ -25,13 +25,14 @@ namespace InstantNeRF
             IntPtr network_output,
             IntPtr rays_numsteps_compacted,
             IntPtr coords_in,
-            IntPtr grad_x,
+            IntPtr rgb_gt,
             IntPtr rgb_output,
             IntPtr density_grid_mean,
             int rgb_activation_i,
             int density_activation_i,
             float aabb0,
             float aabb1,
+            IntPtr loss,
             IntPtr dloss_doutput);
 
         [DllImport("RaymarchApi.dll")]
@@ -110,7 +111,7 @@ namespace InstantNeRF
                 return rgbs;
             }
 
-            public void Backward()
+            public Tensor Backward(Tensor groundTruthRgbs)
             {
 
                 if (this.ctx != null)
@@ -126,21 +127,28 @@ namespace InstantNeRF
                     Device device = networkOutput.device;
 
                     Tensor outputGrad = torch.zeros(new long[] { nElements, 4 }, torch.float32, device);
-                    Tensor colorsGrad = rgbs.grad() ?? torch.empty(0);
+                    Tensor loss = torch.zeros(nElements, torch.float32, device);
 
                     calculateRGBsBackwardApi(networkOutput.Handle, 
                         rayNumstepsCompacted.Handle,
                         positions.Handle,
-                        colorsGrad.Handle,
+                        groundTruthRgbs.Handle,
                         rgbs.Handle,
                         densityMean.Handle,
                         ctx.rgbActivation,
                         ctx.densityActivation,
                         ctx.aabbMin,
                         ctx.aabbMax,
+                        loss.Handle,
                         outputGrad.Handle);
 
                     networkOutput.backward(new List<Tensor>() { outputGrad });
+
+                    return loss;
+                }
+                else
+                {
+                    throw new Exception("must run forward pass first");
                 }
 
             }

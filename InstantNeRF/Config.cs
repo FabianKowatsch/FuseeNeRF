@@ -29,6 +29,7 @@ namespace InstantNeRF
         public string optimizerCfg;
         public float gradScale;
         public float[] bgColor;
+        public bool useRandomBgColor;
         private readonly string configPath = "../../../../Config/config.json";
 
         public Config()
@@ -139,6 +140,12 @@ namespace InstantNeRF
                 if (json.RootElement.TryGetProperty("gradScale", out JsonElement gradScaleElement))
                 {
                     this.gradScale = gradScaleElement.GetSingle();
+                }
+                else throw new Exception("couldnt find gradScale");
+
+                if (json.RootElement.TryGetProperty("useRandomBgColor", out JsonElement useRandomBgColorElement))
+                {
+                    this.useRandomBgColor = useRandomBgColorElement.GetBoolean();
                 }
                 else throw new Exception("couldnt find gradScale");
 

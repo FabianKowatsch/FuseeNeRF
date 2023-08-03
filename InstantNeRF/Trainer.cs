@@ -106,7 +106,11 @@ namespace InstantNeRF
                     Utils.printFirstNValues(imageFloat, 3, "imageFloat");
                     Tensor image = ByteTensor(Utils.linearToSrgb(imageFloat) * 255).to(CPU);
                     byte[] buffer = image.data<byte>().ToArray();
+
+                    //Temporary Memory cleanup
                     d.DisposeEverything();
+                    TcnnWrapper.freeTemporaryMemory();
+
                     return buffer;
                 }
             }
@@ -129,9 +133,12 @@ namespace InstantNeRF
 
                 Console.WriteLine("__________________________________");
                 Console.WriteLine("STEP: " + this.globalStep);
+
+                //Temporary Memory cleanup
                 d.DisposeEverything();
-                this.globalStep++;
                 TcnnWrapper.freeTemporaryMemory();
+
+                this.globalStep++;
             }
             return totalLoss;
         }

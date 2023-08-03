@@ -16,6 +16,7 @@ namespace InstantNeRF
         private float downscale;
         private float[] offset;
         public float[] bgColor;
+        private bool useRandomBgColor;
         private float[,] initialPose;
         public int numRays;
         private int currentIndex;
@@ -33,7 +34,7 @@ namespace InstantNeRF
         public Tensor raysAndRGBS;
         public long batchSize;
 
-        public DataProvider(Device device, string dataPath, string jsonName, string mode, float downScale, float aabbScale, float aabbMin, float aabbMax, float[] offset, float[]bgColor, int numRays, bool preload, string datasetType)
+        public DataProvider(Device device, string dataPath, string jsonName, string mode, float downScale, float aabbScale, float aabbMin, float aabbMax, float[] offset, float[]bgColor, int numRays, bool preload, string datasetType, bool useRandomBgColor)
         {
             this.device = device;
             this.mode = Utils.modeFromString(mode);
@@ -45,6 +46,7 @@ namespace InstantNeRF
             this.aabbMax = aabbMax;
             this.numRays = numRays;
             this.dataPath = dataPath;
+            this.useRandomBgColor = useRandomBgColor;
             string pathToTransforms = Path.Combine(dataPath, jsonName + ".json");
             if (File.Exists(pathToTransforms))
             {
@@ -95,6 +97,8 @@ namespace InstantNeRF
                 this.images = this.images.to(this.device);
             }
             this.batchSize = images.size(0);
+            Utils.printDims(this.images, "images");
+            Console.WriteLine("test_alpha:" + this.images[0, 0, 0 ,3].item<float>());
 
             Tensor rays = Utils.loadRays(this.poses, this.images, this.intrinsics, width, height);
 
@@ -306,14 +310,20 @@ namespace InstantNeRF
             Tensor indices = batch.slice(1, 10, batch.size(1), 1);
 
             //Color perturbation while training
-            Tensor bgColor = torch.rand(gtColors.shape, torch.float32);
+            Tensor bgColor;
+            if(useRandomBgColor)
+            {
+                bgColor = torch.rand(gtColors.shape, torch.float32);
+            }
+            else
+            {
+                bgColor = torch.ones_like(gtColors, torch.float32).multiply(torch.from_array(this.bgColor));
+            }
 
             if (this.mode == NerfMode.TRAIN)
             {
                 gtColors = gtColors * alpha + bgColor * (1 - alpha);
             }
-
-
 
             this.currentIndex += numRays;
 

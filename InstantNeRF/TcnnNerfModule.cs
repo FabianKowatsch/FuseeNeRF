@@ -16,7 +16,7 @@ namespace InstantNeRF
         public uint outputDimsDensity;
         private float lossScale;
         private AutogradFunctions.ModuleFunction? gradFnc;
-        public TcnnNerfModule(string name, uint posInputDims, uint dirInputDims, uint extraInputDims, uint dirOffset, string posEncoding, string dirEncoding, string sigmaNet, string colorNet, ulong seed = 1234) : base(name)
+        public TcnnNerfModule(string name, uint posInputDims, uint dirInputDims, uint extraInputDims, uint dirOffset, string posEncoding, string dirEncoding, string sigmaNet, string colorNet, ulong seed = 1337) : base(name)
         {
             this.nativeTcnnMLP = new NerfModuleWrapper(moduleRef: createNerfNetwork(posInputDims, dirInputDims, extraInputDims, dirOffset, posEncoding, dirEncoding, sigmaNet, colorNet));
             this.seed = seed;
@@ -32,7 +32,8 @@ namespace InstantNeRF
             this.register_parameter("paramFP", paramFP);
             if (this.dtype == torch.half)
             {
-                this.lossScale = 128.0f;
+                //this.lossScale = 128.0f;
+                this.lossScale = 1.0f;
             }
             else
             {

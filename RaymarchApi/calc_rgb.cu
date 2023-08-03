@@ -78,9 +78,10 @@ __global__ void compute_rgbs_grad(
     PitchedPtr<NerfCoordinate> coords_in,       //network input,(xyz,dt,dir)
     ENerfActivation rgb_activation,             //activation of rgb in output
     ENerfActivation density_activation,         //activation of density in output
-    Array3f *__restrict__ loss_grad,            //dloss_dRGBoutput
+    float* __restrict__ loss_output,            //Loss
+    Array3f *__restrict__ rgb_gt,               //RGB from gt image
     Array3f *__restrict__ rgb_ray,              //RGB from forward calculation
-    float *__restrict__ density_grid_mean      //density_grid mean value,
+    float *__restrict__ density_grid_mean       //density_grid mean value,
     )
 {
 
@@ -97,8 +98,17 @@ __global__ void compute_rgbs_grad(
     coords_in += base;
     network_output += base * padded_output_width;
     dloss_doutput += base * padded_output_width;
-    loss_grad += i;
+    rgb_gt += i;
     rgb_ray += i;
+
+    LossAndGradient loss_and_gradient = huber_loss(*rgb_gt, *rgb_ray) / 5.0f;
+
+
+    float mean_loss = loss_and_gradient.loss.mean();
+
+    if (loss_output) {
+        loss_output[i] = mean_loss / (float)n_rays;
+    }
 
     const float output_l2_reg = rgb_activation == ENerfActivation::Exponential ? 1e-4f : 0.0f;
     const float output_l1_reg_density = *density_grid_mean < NERF_MIN_OPTICAL_THICKNESS() ? 1e-4f : 0.0f;
@@ -119,7 +129,7 @@ __global__ void compute_rgbs_grad(
         T *= (1.f - alpha);
 
         const Array3f suffix = *rgb_ray - rgb_ray2;
-        const Array3f dloss_by_drgb = weight * (*loss_grad);
+        const Array3f dloss_by_drgb = weight * loss_and_gradient.gradient;
 
         vector_t<TYPE, 4> local_dL_doutput;
 
@@ -129,7 +139,7 @@ __global__ void compute_rgbs_grad(
         local_dL_doutput[2] = loss_scale * (dloss_by_drgb.z() * network_to_rgb_derivative(local_network_output[2], rgb_activation) + fmaxf(0.0f, output_l2_reg * (float)local_network_output[2]));
 
         float density_derivative = network_to_density_derivative(float(local_network_output[3]), density_activation);
-        float dloss_by_dmlp = density_derivative * (dt * (*loss_grad).matrix().dot((T * rgb - suffix).matrix()));
+        float dloss_by_dmlp = density_derivative * (dt * loss_and_gradient.gradient.matrix().dot((T * rgb - suffix).matrix()));
         local_dL_doutput[3] = loss_scale * dloss_by_dmlp + (float(local_network_output[3]) < 0 ? -output_l1_reg_density : 0.0f);
         *(vector_t<TYPE, 4> *)dloss_doutput = local_dL_doutput;
 
@@ -268,15 +278,14 @@ void calc_rgb_backward_api(
     const torch::Tensor &network_output,
     const torch::Tensor &rays_numsteps_compacted,
     const torch::Tensor &coords_in,
-    const torch::Tensor &grad_x,
+    const torch::Tensor &rgb_gt,
     const torch::Tensor &rgb_output,
     const torch::Tensor &density_grid_mean,
-
     const int &rgb_activation_i,
     const int &density_activation_i,
     const float &aabb0,
     const float &aabb1,
-
+    torch::Tensor &loss,
     torch::Tensor &dloss_doutput){
     /*
      * @brief calc_rgb_forward_api
@@ -300,8 +309,9 @@ void calc_rgb_backward_api(
     }
     data_t* network_output_p = (data_t*)network_output.data_ptr();
     float* coords_in_p = (float*)coords_in.data_ptr();
-    float* grad_x_p = (float*)grad_x.data_ptr();
+    float* loss_p = (float*)loss.data_ptr();
     float* rgb_output_p = (float*)rgb_output.data_ptr();
+    float* rgb_gt_p = (float*)rgb_gt.data_ptr();
     float* density_grid_mean_p = (float*)density_grid_mean.data_ptr();
     uint32_t* rays_numsteps_compacted_p = (uint32_t*)rays_numsteps_compacted.data_ptr();
 
@@ -320,7 +330,7 @@ void calc_rgb_backward_api(
         n_rays, m_aabb, padded_output_width, (data_t*)dloss_doutput_p,
         (data_t*)network_output_p, (uint32_t*)rays_numsteps_compacted_p,
         PitchedPtr<NerfCoordinate>((NerfCoordinate*)coords_in_p, 1, 0, 0),
-        rgb_activation, density_activation,(Array3f*)grad_x_p,(Array3f*)rgb_output_p,
+        rgb_activation, density_activation,(float*)loss_p,(Array3f*)rgb_gt_p,(Array3f*)rgb_output_p,
         (float*)density_grid_mean_p);
 
     cudaDeviceSynchronize();

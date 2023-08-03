@@ -67,9 +67,9 @@ namespace InstantNeRF
                 return result;
             }
         }
-        public void backward()
+        public Tensor backward(Tensor groundtruthRgbs)
         {
-            this.renderer.Backward();
+            return this.renderer.Backward(groundtruthRgbs);
         }
 
     }

@@ -95,7 +95,7 @@ EXPORT_API void calculateRGBsBackwardApi(
     const torch::Tensor* network_output,
     const torch::Tensor* rays_numsteps_compacted,
     const torch::Tensor* coords_in,
-    const torch::Tensor* grad_x,
+    const torch::Tensor* rgb_gt,
     const torch::Tensor* rgb_output,
     const torch::Tensor* density_grid_mean,
 
@@ -103,9 +103,10 @@ EXPORT_API void calculateRGBsBackwardApi(
     int density_activation_i,
     float aabb0,
     float aabb1,
+    torch::Tensor* loss,
     torch::Tensor* dloss_doutput) {
 
-    calc_rgb_backward_api(*network_output, *rays_numsteps_compacted, *coords_in, *grad_x, *rgb_output, *density_grid_mean, rgb_activation_i, density_activation_i, aabb0, aabb1, *dloss_doutput);
+    calc_rgb_backward_api(*network_output, *rays_numsteps_compacted, *coords_in, *rgb_gt, *rgb_output, *density_grid_mean, rgb_activation_i, density_activation_i, aabb0, aabb1, *loss, *dloss_doutput);
 }
 
 EXPORT_API void calculateRGBsInferenceApi(

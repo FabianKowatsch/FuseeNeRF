@@ -55,16 +55,16 @@ namespace InstantNeRF
             renderer.train();
             Dictionary<string, Tensor> result = forward(data);
             data["alpha"].detach_();
-            Tensor loss = Metrics.HuberLoss(result["rgb"], data["gt"]);
-            //loss = loss * 5;
+            Console.WriteLine("rgb_mean: " + (result["rgb"].sum().item<float>() / (float)result["rgb"].numel()));
+            Console.WriteLine("gt_mean: " + (data["gt"].sum().item<float>() / (float)data["gt"].numel()));
 
             Console.WriteLine("------------------------");
             Console.WriteLine("LOSS");
             Console.WriteLine("------------------------");
+            Tensor loss = renderer.backward(data["gt"]).mean();
             loss.print();
 
-            scaler.scale(loss).backward();
-            renderer.backward();
+            //scaler.scale(loss).backward();
             Tensor gradients = mlp.backward(scaler.getScale());
 
             scaler.step(optimizer, gradients);

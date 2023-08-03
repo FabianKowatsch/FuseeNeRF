@@ -38,7 +38,7 @@ namespace FuseeApp
         private float _focalY;
         private Texture _texture;
         private int currentStep = 0;
-        private readonly int stepsToTrain = 8;
+        private readonly int stepsToTrain = 100;
         private DataProvider _dataProvider;
         private Config _config;
         private Transform _simulatingCamPivotTransform;
@@ -200,8 +200,8 @@ namespace FuseeApp
 
                 _config = new Config();
 
-                DataProvider trainData = new DataProvider(device, _config.dataPath, _config.trainDataFilename, "train", _config.imageDownscale, _config.aabbScale, _config.aabbMin, _config.aabbMax, _config.offset, _config.bgColor, _config.nRays, preload: false, _config.datasetType);
-                DataProvider evalData = new DataProvider(device, _config.dataPath, _config.evalDataFilename, "train", _config.imageDownscale, _config.aabbScale, _config.aabbMin, _config.aabbMax, _config.offset, _config.bgColor, _config.nRays, preload: false, _config.datasetType);
+                DataProvider trainData = new DataProvider(device, _config.dataPath, _config.trainDataFilename, "train", _config.imageDownscale, _config.aabbScale, _config.aabbMin, _config.aabbMax, _config.offset, _config.bgColor, _config.nRays, preload: false, _config.datasetType, _config.useRandomBgColor);
+                DataProvider evalData = new DataProvider(device, _config.dataPath, _config.evalDataFilename, "val", _config.imageDownscale, _config.aabbScale, _config.aabbMin, _config.aabbMax, _config.offset, _config.bgColor, _config.nRays, preload: false, _config.datasetType, _config.useRandomBgColor);
                 Console.WriteLine("created datasets");
 
                 GridSampler sampler = new GridSampler(trainData);
@@ -212,9 +212,6 @@ namespace FuseeApp
 
                 Optimizer optimizer = new Optimizer(_config.optimizerCfg, network.mlp);
                 Console.WriteLine("created optimizer");
-
-                Loss<Tensor, Tensor, Tensor> criterion = torch.nn.MSELoss(reduction: nn.Reduction.None);
-                Console.WriteLine("created loss");
 
                 Trainer trainer = new Trainer("NGP001", optimizer, network, 1, subdirectoryName: "workspace_lego_synthetic");
                 Console.WriteLine("created trainer");
@@ -243,9 +240,12 @@ namespace FuseeApp
             if (currentStep <= stepsToTrain)
             {
                 TrainStep();
-                if (currentStep == stepsToTrain)
+                if (currentStep % 2 == 0)
                 {
                     InferenceStep();
+                }
+                if(currentStep == stepsToTrain)
+                {
                     Console.ReadLine();
                 }
             }

@@ -139,39 +139,6 @@ __host__ __device__ inline uint32_t morton3D_invert(uint32_t x)
 	return x;
 }
 
-// struct BoundingBox
-// {
-// 	NGP_HOST_DEVICE BoundingBox() {}
-
-// 	NGP_HOST_DEVICE BoundingBox(const Eigen::Vector3f &a, const Eigen::Vector3f &b) : min{a}, max{b} {}
-
-// 	NGP_HOST_DEVICE void enlarge(const BoundingBox &other)
-// 	{
-// 		min = min.cwiseMin(other.min);
-// 		max = max.cwiseMax(other.max);
-// 	}
-
-// 	NGP_HOST_DEVICE void enlarge(const Eigen::Vector3f &point)
-// 	{
-// 		min = min.cwiseMin(point);
-// 		max = max.cwiseMax(point);
-// 	}
-
-// 	NGP_HOST_DEVICE Eigen::Vector3f diag() const
-// 	{
-// 		return max - min;
-// 	}
-
-// 	NGP_HOST_DEVICE Eigen::Vector3f relative_pos(const Eigen::Vector3f &pos) const
-// 	{
-// 		return (pos - min).cwiseQuotient(diag());
-// 	}
-
-// 	Eigen::Vector3f min = Eigen::Vector3f::Constant(std::numeric_limits<float>::infinity());
-// 	Eigen::Vector3f max = Eigen::Vector3f::Constant(-std::numeric_limits<float>::infinity());
-// };
-
-
 
 inline NGP_HOST_DEVICE float sign(float x)
 {
@@ -627,6 +594,7 @@ enum class ENerfActivation : int
 	Logistic,
 	Exponential,
 };
+
 static __device__ float network_to_density(float val, ENerfActivation activation)
 {
 	switch (activation)

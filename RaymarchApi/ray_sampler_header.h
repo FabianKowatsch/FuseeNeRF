@@ -516,6 +516,24 @@ struct LossAndGradient
     }
 };
 
+inline __host__ __device__ LossAndGradient huber_loss(const Array3f& target, const Array3f& prediction, float alpha = 1) {
+    Array3f difference = prediction - target;
+    Array3f abs_diff = difference.abs();
+    Array3f square = 0.5f / alpha * difference * difference;
+    return {
+        {
+            abs_diff.x() > alpha ? (abs_diff.x() - 0.5f * alpha) : square.x(),
+            abs_diff.y() > alpha ? (abs_diff.y() - 0.5f * alpha) : square.y(),
+            abs_diff.z() > alpha ? (abs_diff.z() - 0.5f * alpha) : square.z(),
+        },
+        {
+            abs_diff.x() > alpha ? (difference.x() > 0 ? 1.0f : -1.0f) : (difference.x() / alpha),
+            abs_diff.y() > alpha ? (difference.y() > 0 ? 1.0f : -1.0f) : (difference.y() / alpha),
+            abs_diff.z() > alpha ? (difference.z() > 0 ? 1.0f : -1.0f) : (difference.z() / alpha),
+        },
+    };
+}
+
 inline __device__ float network_to_rgb_derivative(float val, ENerfActivation activation)
 {
     switch (activation)

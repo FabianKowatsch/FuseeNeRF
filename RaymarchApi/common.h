@@ -71,18 +71,18 @@ void calc_rgb_forward_api(
     torch::Tensor &rgb_output);
 
 void calc_rgb_backward_api(
-    const torch::Tensor &network_output,
-    const torch::Tensor &rays_numsteps_compacted,
-    const torch::Tensor &coords_in,
-    const torch::Tensor &grad_x,
-    const torch::Tensor &rgb_output,
-    const torch::Tensor &density_grid_mean,
-
-    const int &rgb_activation_i,
-    const int &density_activation_i,
-    const float &aabb0,
-    const float &aabb1,
-    torch::Tensor &dloss_doutput);
+    const torch::Tensor& network_output,
+    const torch::Tensor& rays_numsteps_compacted,
+    const torch::Tensor& coords_in,
+    const torch::Tensor& rgb_gt,
+    const torch::Tensor& rgb_output,
+    const torch::Tensor& density_grid_mean,
+    const int& rgb_activation_i,
+    const int& density_activation_i,
+    const float& aabb0,
+    const float& aabb1,
+    torch::Tensor& loss,
+    torch::Tensor& dloss_doutput);
 
 void calc_rgb_inference_api(
     const torch::Tensor &network_output,
