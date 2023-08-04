@@ -12,7 +12,7 @@ namespace InstantNeRF
         {
             this.bound = bound;
             //uint featureDims = 15u;
-            uint neuronsPerLayer = 64u;
+            uint neuronsPerLayer = 128u;
             uint nLayersSigma = 1u;
             uint nLayersColor = 2u;
             float perLevelScale = Convert.ToSingle(Math.Pow(2, Math.Log2(2048 * this.bound / 16) / (16 - 1)));

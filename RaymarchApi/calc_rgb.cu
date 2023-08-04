@@ -101,6 +101,9 @@ __global__ void compute_rgbs_grad(
     rgb_gt += i;
     rgb_ray += i;
 
+    if (i % 200 == 0) {
+        printf("RGBS/GT: R: %f / %f G: %f / %f B: %f / %f \n", rgb_ray->x(), rgb_gt->x(), rgb_ray->y(), rgb_gt->y(), rgb_ray->z(), rgb_gt->z());
+    }
     LossAndGradient loss_and_gradient = huber_loss(*rgb_gt, *rgb_ray) / 5.0f;
 
 

@@ -1,6 +1,10 @@
 ﻿using TorchSharp;
 using static TorchSharp.torch;
 using System.Text.Json;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Formats.Jpeg;
 
 namespace InstantNeRF
 {
@@ -75,18 +79,15 @@ namespace InstantNeRF
         }
 
 
-        public byte[] inferenceStepRT(Tensor pose, Tensor intrinsics, int height, int width, int downScale = 1)
+        public byte[] inferenceStepRT(Tensor pose, Tensor intrinsics, int height, int width)
         {
-            int renderWidth = width * downScale;
-            int renderHeight = height * downScale;
-            intrinsics = intrinsics * (float)downScale;
 
             using (var d = torch.NewDisposeScope())
             {
                 using (torch.no_grad())
                 {
 
-                    (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(renderWidth, renderHeight, intrinsics, pose);
+                    (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(width, height, intrinsics, pose);
 
                     raysO = raysO.reshape(-1, 3).to(CUDA); //from [H,W,3] to [H*W,3]
                     raysDir = raysDir.reshape(-1, 3).to(CUDA); //from [H,W,3] to [H*W,3]
@@ -95,17 +96,21 @@ namespace InstantNeRF
                     Tensor rgbOut = this.network.testStep(data);
                     Tensor imageFloat = rgbOut.reshape((long)height, (long)width, 3);
 
-                    if (downScale != 1)
-                    {
-
-                        imageFloat = torch.nn.functional.interpolate(imageFloat.unsqueeze(1), size: new long[] { height, width }, mode: InterpolationMode.Nearest).squeeze(1);
-                    }
-                    //Tensor image = ByteTensor(imageFloat * 255);
                     Utils.printDims(imageFloat, "imageFloat");
                     Utils.printMean(imageFloat, "imageFloat");
+
                     Tensor image = ByteTensor(Utils.linearToSrgb(imageFloat) * 255).to(CPU);
                     byte[] buffer = image.data<byte>().ToArray();
 
+                    /*
+                    using (Image<Rgb24> imageToSave = Image.Load<Rgb24>(buffer))
+                    {
+                        // Save the RGB image to a file
+                        string outputPath = Path.Combine(this.savePath, "output_rgb_image_ " + this.globalStep + ".jpg");
+                        imageToSave.Save(outputPath, new JpegEncoder());
+                    }
+                    Console.ReadLine();
+                    */
                     //Temporary Memory cleanup
                     d.DisposeEverything();
                     TcnnWrapper.freeTemporaryMemory();

@@ -98,18 +98,18 @@ namespace InstantNeRF
             }
             this.batchSize = images.size(0);
 
-            Tensor rays = Utils.loadRays(this.poses, this.images, this.intrinsics, width, height);
+            Tensor raysAndData = Utils.loadRays(this.poses, this.images, this.intrinsics, width, height);
 
 
             if (this.mode == NerfMode.TRAIN)
             {
-                Tensor indices = torch.randperm(rays.size(0));
-                Tensor shuffledRays = rays[indices];
+                Tensor indices = torch.randperm(raysAndData.size(0));
+                Tensor shuffledRays = raysAndData[indices];
                 this.raysAndRGBS = shuffledRays;
             }
             else
             {
-                this.raysAndRGBS = rays;
+                this.raysAndRGBS = raysAndData;
             }
             this.currentIndex = 0;
         }
@@ -141,6 +141,7 @@ namespace InstantNeRF
             if (transforms.RootElement.TryGetProperty("cy", out JsonElement centerYElement))
                 centerY = centerYElement.GetSingle() / downscale;
             else centerY = this.height / 2;
+
             return new float[4] { focusX, focusY, centerX, centerY };
         }
 
@@ -177,9 +178,10 @@ namespace InstantNeRF
                         filePath = pathElement.GetString() ?? throw new Exception("wrong path");
                     }
                     Tensor image = useSynthetic ? getImageDataFromPNG(Path.Combine(dataPath, filePath + ".png")) : getImageDataFromJPG(Path.Combine(dataPath, filePath + ".jpg"));
+
                     image = Utils.srgbToLinear(image);
 
-                    if(counter == 0)
+                    if (counter == 8)
                     {
                         initialPose = mtx;
                     }

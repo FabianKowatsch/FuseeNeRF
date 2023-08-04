@@ -66,6 +66,9 @@ namespace InstantNeRF
             Tensor alphas = torch.zeros(new long[] { nRaysPerBatch, 1 }, torch.float32, device);
             calculateRGBsInferenceApi(output.Handle, positions.Handle, rayNumsteps.Handle, bgColorInference.Handle, rgbActivation, densityActivation, aabb0, aabb1, rgbs.Handle, alphas.Handle);
 
+            Utils.printMean(rgbs, "rgbs after inference");
+            Utils.printMean(alphas, "alpha after inference");
+            Utils.printFirstNValues(bgColorInference, 3, "bgColor inference");
             return (rgbs.detach(), alphas.detach());
         }
 

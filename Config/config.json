@@ -8,8 +8,8 @@
   "aabbScale": 0.33,
   "offset": [ 0.5, 0.5, 0.5 ],
   "bgColor": [ 1.0, 1.0, 1.0 ],
-  "useRandomBgColor":  false,
-  "imageDownscale": 1.0,
+  "useRandomBgColor":  true,
+  "imageDownscale": 2.0,
   "nRays": 2048,
   "gradScale": 1.0,
   "optimizerCfg": {

@@ -55,8 +55,6 @@ namespace InstantNeRF
             renderer.train();
             Dictionary<string, Tensor> result = forward(data);
             data["alpha"].detach_();
-            Console.WriteLine("rgb_mean: " + (result["rgb"].sum().item<float>() / (float)result["rgb"].numel()));
-            Console.WriteLine("gt_mean: " + (data["gt"].sum().item<float>() / (float)data["gt"].numel()));
 
             Console.WriteLine("------------------------");
             Console.WriteLine("LOSS");

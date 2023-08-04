@@ -36,6 +36,10 @@ namespace FuseeApp
 
         private float _focalX;
         private float _focalY;
+        private float _centerX;
+        private float _centerY;
+        private int _renderWidth;
+        private int _renderHeight;
         private Texture _texture;
         private int currentStep = 0;
         private readonly int stepsToTrain = 100;
@@ -82,14 +86,15 @@ namespace FuseeApp
 
             SceneContainer textureScene = new SceneContainer();
 
-            //Setup texture to write to
-            var focalLengths = CalculateFocalLength(this.Width / 100, this.Height / 100, this._fovy);
-            _focalX = focalLengths[0];
-            _focalY = focalLengths[1];
+            _renderWidth = 800 / (int)_config.imageDownscale;
+            _renderHeight = 800 / (int)_config.imageDownscale;
 
-            byte[] raw = new byte[this.Width * this.Height * 3];
+            //Setup texture to write to
+            UpdateIntrinsics((float)_renderWidth, (float)_renderHeight, this._fovy);
+
+            byte[] raw = new byte[_renderWidth * _renderHeight * 3];
             ImagePixelFormat format = new ImagePixelFormat(ColorFormat.RGB);
-            _texture = new Texture(raw, this.Width, this.Height, format, false);
+            _texture = new Texture(raw, _renderWidth, _renderHeight, format, false, wrapMode: TextureWrapMode.ClampToEdge);
 
 
 
@@ -254,7 +259,7 @@ namespace FuseeApp
 
         private void Controls()
         {
-            _simulatingCamPivotTransform.RotationQuaternion = QuaternionF.FromEuler(_angleVert, _angleHorz, 0);
+            //_simulatingCamPivotTransform.RotationQuaternion = QuaternionF.FromEuler(_angleVert, _angleHorz, 0);
             //_mainCamPivotTransform.RotationQuaternion = QuaternionF.FromEuler(_angleVert, _angleHorz, 0);
 
             // Mouse and keyboard movement
@@ -306,26 +311,24 @@ namespace FuseeApp
             Tensor poseConverted = Utils.matrixToNGP(pose, _config.aabbScale, _config.offset);
 
             //intrinsics
-            float centerX = this.Width / 2;
-            float centerY = this.Height / 2;
+
 
             float[,] intrinsicsArray = new float[,] {
-                { _focalX, 0f, centerX },
-                {0f, _focalY, centerY },
+                { _focalX, 0f, _centerX },
+                {0f, _focalY, _centerY },
                 {0f, 0f, 1f }
             };
             Tensor intrinsics = torch.from_array(intrinsicsArray);
 
-            byte[] buffer = _trainer.inferenceStepRT(poseConverted, intrinsics, height: this.Height, width: this.Width, 1);
+            byte[] buffer = _trainer.inferenceStepRT(poseConverted, intrinsics, _renderHeight, _renderWidth);
             ImagePixelFormat format = new ImagePixelFormat(ColorFormat.RGB);
-            ImageData data = new ImageData(buffer, this.Width, this.Height, format);
-            _texture.Blt(0, 0, data);
+            ImageData data = new ImageData(buffer, _renderWidth, _renderHeight, format);
+            _texture.Blt(0, 0, data, width: _renderWidth, height: _renderHeight);
         }
         private void TrainStep()
         {
             float loss = _trainer.trainStepRT(currentStep, _dataProvider);
             currentStep++;
-
         }
 
         private void setInitialPose()
@@ -349,12 +352,12 @@ namespace FuseeApp
         }
 
 
-        private float[] CalculateFocalLength(float sensorWidth, float sensorHeight, float fov)
+        private void UpdateIntrinsics(float sensorWidth, float sensorHeight, float fov)
         {
-
-            float focalLengthX = (sensorWidth / 2f) / Convert.ToSingle(MathHelper.Tan(Convert.ToDouble(fov / 2d)));
-            float focalLengthY = (sensorHeight / 2f) / Convert.ToSingle(MathHelper.Tan(Convert.ToDouble(fov / 2d)));
-            return new float[2] { focalLengthX, focalLengthY };
+            _focalX = (sensorWidth / 2f) / Convert.ToSingle(MathHelper.Tan(Convert.ToDouble(fov / 2d)));
+            _focalY = (sensorHeight / 2f) / Convert.ToSingle(MathHelper.Tan(Convert.ToDouble(fov / 2d)));
+            _centerX = sensorWidth / 2;
+            _centerY = sensorHeight / 2;
         }
     }
 }
