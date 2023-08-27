@@ -42,7 +42,7 @@ namespace FuseeApp
         private int _renderHeight;
         private Texture _texture;
         private int currentStep = 0;
-        private readonly int stepsToTrain = 100;
+        private int stepsToTrain;
         private DataProvider _dataProvider;
         private Config _config;
         private Transform _simulatingCamPivotTransform;
@@ -88,6 +88,7 @@ namespace FuseeApp
 
             _renderWidth = 800 / (int)_config.imageDownscale;
             _renderHeight = 800 / (int)_config.imageDownscale;
+            stepsToTrain = (int)_config.stepsToTrain;
 
             //Setup texture to write to
             UpdateIntrinsics((float)_renderWidth, (float)_renderHeight, this._fovy);
@@ -97,48 +98,6 @@ namespace FuseeApp
             _texture = new Texture(raw, _renderWidth, _renderHeight, format, false, wrapMode: TextureWrapMode.ClampToEdge);
 
 
-
-            // CANVAS
-            /*
-            float canvasHeight = Height;
-            float canvasWidth = Width;
-            var canvas = new CanvasNode(
-                "Canvas",
-                CanvasRenderMode.Screen,
-                new MinMaxRect
-                {
-                    Min = new float2(-canvasWidth / 2f, -canvasHeight / 2f),
-                    Max = new float2(canvasWidth / 2f, canvasHeight / 2f)
-                })
-            {
-                Children = new ChildList()
-                {
-                TextureNode.Create(
-                "Blt",
-                _texture,
-                GuiElementPosition.GetAnchors(AnchorPos.DownDownLeft),
-                GuiElementPosition.CalcOffsets(AnchorPos.DownDownLeft, new float2(0, 0), canvasHeight, canvasWidth, new float2(4, 4)),
-                float2.One)
-                }
-            };
-            canvas.AddComponent(MakeEffect.FromDiffuseSpecular((float4)ColorUint.Red));
-            canvas.AddComponent(new Plane());
-            var canvasNode = new SceneNode()
-            {
-                Components = new List<SceneComponent>()
-                        {
-                            new Transform()
-                            {
-                                Translation = new float3(0, 0, 0),
-                                Rotation = new float3(0, M.PiOver4, 0)
-                            }
-                        },
-                Children = new ChildList()
-                        {
-                            canvas
-                        }
-            };
-            */
             var quad = new SceneNode()
             {
                 Name = "Quad",
@@ -146,7 +105,7 @@ namespace FuseeApp
                 {
                     new Plane(),
                     new Transform() { Translation = new float3(0, 0, 0) },
-                    //MakeEffect.FromUnlit(float4.One, _texture),
+                    MakeEffect.FromUnlit(float4.One, _texture),
                     MakeEffect.Default()
 
                 }

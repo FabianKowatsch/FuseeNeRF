@@ -11,6 +11,7 @@
   "useRandomBgColor":  true,
   "imageDownscale": 2.0,
   "nRays": 2048,
+  "stepsToTrain":  1000,
   "gradScale": 1.0,
   "optimizerCfg": {
     "otype": "Ema",

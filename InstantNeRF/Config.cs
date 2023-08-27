@@ -26,6 +26,7 @@ namespace InstantNeRF
         public float aabbScale;
         public float imageDownscale;
         public int nRays;
+        public int stepsToTrain;
         public string optimizerCfg;
         public float gradScale;
         public float[] bgColor;
@@ -130,6 +131,12 @@ namespace InstantNeRF
                     this.nRays = nRaysElement.GetInt32();
                 }
                 else throw new Exception("couldnt find nRays");
+
+                if (json.RootElement.TryGetProperty("stepsToTrain", out JsonElement nStepsElement))
+                {
+                    this.stepsToTrain = nStepsElement.GetInt32();
+                }
+                else throw new Exception("couldnt find stepsToTrain");
 
                 if (json.RootElement.TryGetProperty("optimizerCfg", out JsonElement optimizerElement))
                 {

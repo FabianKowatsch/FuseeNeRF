@@ -40,7 +40,7 @@ __global__ void compacted_coord_cuda(
     {
         if (T < EPSILON)
         {
-            // break;
+            break;
         }
 
         const vector_t<TYPE, 4> local_network_output = *(vector_t<TYPE, 4> *)network_output;
