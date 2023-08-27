@@ -171,7 +171,7 @@ namespace FuseeApp
                 GridSampler sampler = new GridSampler(trainData);
                 Console.WriteLine("created gridsampler");
 
-                Network network = new Network(sampler, _config.gradScale, _config.bgColor);
+                Network network = new Network(sampler, _config.gradScale, _config.bgColor, _config.dirEncodingCfg, _config.posEncodingCfg, _config.sigmaNetCfg, _config.colorNetCfg);
                 Console.WriteLine("created net");
 
                 Optimizer optimizer = new Optimizer(_config.optimizerCfg, network.mlp);

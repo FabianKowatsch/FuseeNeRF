@@ -7,27 +7,13 @@ namespace InstantNeRF
     public class MLP : nn.Module
     {
         private TcnnNerfModule tcnnMLP;
-        private float bound;
-        public MLP(float bound) : base("MLP")
+        public MLP(string encodingPos, string encodingDir, string networkSigma, string networkColor) : base("MLP")
         {
-            this.bound = bound;
-            //uint featureDims = 15u;
-            uint neuronsPerLayer = 128u;
-            uint nLayersSigma = 1u;
-            uint nLayersColor = 2u;
-            float perLevelScale = Convert.ToSingle(Math.Pow(2, Math.Log2(2048 * this.bound / 16) / (16 - 1)));
-
-            string encodingPosCfg = "{\"otype\": \"HashGrid\", \"n_levels\": 16, \"n_features_per_level\": 2, \"log2_hashmap_size\": 19, \"base_resolution\": 16, \"per_level_scale\": " + perLevelScale.ToString(System.Globalization.CultureInfo.InvariantCulture) + "}";
-            string networkSigmaCfg = "{\"otype\": \"FullyFusedMLP\", \"n_neurons\": " + neuronsPerLayer + ", \"n_hidden_layers\": " + nLayersSigma + ", \"activation\": \"ReLU\", \"output_activation\": \"None\"}";
-            string encodingDirCfg = "{\"n_dims_to_encode\": 3, \"otype\": \"SphericalHarmonics\", \"degree\": 4}";
-            string networkColorCfg = "{\"otype\": \"FullyFusedMLP\", \"n_neurons\": " + neuronsPerLayer + ", \"n_hidden_layers\": " + nLayersColor + ", \"activation\": \"ReLU\", \"output_activation\": \"None\"}";
-
             uint positionDims = 3;
             uint directionDims = 3;
             uint extraDims = 0;
             uint offsetStartToDirection = positionDims;
-            tcnnMLP = new TcnnNerfModule("TcnnMLP", positionDims, directionDims, extraDims, offsetStartToDirection, encodingPosCfg, encodingDirCfg, networkSigmaCfg, networkColorCfg);
-
+            tcnnMLP = new TcnnNerfModule("TcnnMLP", positionDims, directionDims, extraDims, offsetStartToDirection, encodingPos, encodingDir, networkSigma, networkColor);
         }
 
         public Dictionary<string, Tensor> forward(Dictionary<string, Tensor> data, bool inference = true)

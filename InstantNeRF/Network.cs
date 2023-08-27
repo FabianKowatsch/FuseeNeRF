@@ -14,16 +14,9 @@ namespace InstantNeRF
         public MLP mlp;
         public GradScaler scaler; 
         private VolumeRenderer renderer;
-        public Network(GridSampler sampler, float gradScale, float[] bgColor) : base("NerfNetwork") {
+        public Network(GridSampler sampler, float gradScale, float[] bgColor, string encodingPos, string encodingDir, string networkSigma, string networkColor) : base("NerfNetwork") {
             this.sampler = sampler;
-
-            float halfBound = 1.0f;
-
-            if(sampler.dataInfo != null )
-            {
-                halfBound = (sampler.dataInfo.aabbMax - sampler.dataInfo.aabbMin) / 2;
-            }
-            this.mlp = new MLP(halfBound);
+            this.mlp = new MLP(encodingPos, encodingDir, networkSigma, networkColor);
             this.renderer = new VolumeRenderer(bgColor);
             this.scaler = new GradScaler(gradScale);
         }
