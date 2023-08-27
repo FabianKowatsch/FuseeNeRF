@@ -45,12 +45,9 @@ void compacted_coord_api(
     const torch::Tensor &network_output,
     const torch::Tensor &coords_in,
     const torch::Tensor &rays_numsteps,
-    const torch::Tensor &bg_color_in,
-    const int &rgb_activation_i,
     const int &density_activation_i,
     const float &aabb0,
     const float &aabb1,
-
     torch::Tensor &coords_out,
     torch::Tensor &rays_numsteps_compacted,
     torch::Tensor &compacted_rays_counter,

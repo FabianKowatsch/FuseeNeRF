@@ -63,8 +63,6 @@ EXPORT_API void compactedCoordsApi(
     const torch::Tensor* network_output,
     const torch::Tensor* coords_in,
     const torch::Tensor* rays_numsteps,
-    const torch::Tensor* bg_color_in,
-    int rgb_activation_i,
     int density_activation_i,
     float aabb0,
     float aabb1,
@@ -73,7 +71,7 @@ EXPORT_API void compactedCoordsApi(
     torch::Tensor* compacted_rays_counter,
     torch::Tensor* compacted_numstep_counter) {
 
-    compacted_coord_api(*network_output, *coords_in, *rays_numsteps, *bg_color_in, rgb_activation_i, density_activation_i, aabb0, aabb1, *coords_out, *rays_numsteps_compacted, *compacted_rays_counter, *compacted_numstep_counter);
+    compacted_coord_api(*network_output, *coords_in, *rays_numsteps, density_activation_i, aabb0, aabb1, *coords_out, *rays_numsteps_compacted, *compacted_rays_counter, *compacted_numstep_counter);
 }
 
 EXPORT_API void calculateRGBsForwardApi(

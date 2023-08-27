@@ -59,8 +59,6 @@ namespace InstantNeRF
             IntPtr network_output,
     IntPtr coords_in,
     IntPtr rays_numsteps,
-    IntPtr bg_color_in,
-    int rgb_activation_i,
     int density_activation_i,
     float aabb0,
     float aabb1,
@@ -159,30 +157,24 @@ namespace InstantNeRF
         }
 
         public static Tensor[] compactedCoords(
-            Tensor output,
+            Tensor sigmaOutput,
             Tensor positionsIn,
             Tensor rayNumsteps,
             long nElementsCompacted,
-            int colorActivation,
             int densityActivation,
             float aabb0,
-            float aabb1,
-            float[] bgColor
+            float aabb1
             )
         {
-            Device device = output.device;
+            Device device = sigmaOutput.device;
             Tensor positionsOut = torch.zeros(new long[] { nElementsCompacted, 7 }, torch.float32, device);
             Tensor rayNumstepsCompacted = torch.zeros_like(rayNumsteps, torch.int32, device);
             Tensor rayCounterCompacted = torch.zeros(new long[] { 1 }, torch.int32, device);
             Tensor numstepsCounterCompacted = torch.zeros(new long[] { 1 }, torch.int32, device);
 
-            Tensor bgColorCpu = torch.tensor(bgColor, torch.float32).cpu();
-
-            compactedCoordsApi(output.Handle,
+            compactedCoordsApi(sigmaOutput.Handle,
                 positionsIn.Handle,
                 rayNumsteps.Handle,
-                bgColorCpu.Handle,
-                colorActivation,
                 densityActivation,
                 aabb0,
                 aabb1,

@@ -215,13 +215,8 @@ namespace InstantNeRF
                 data.Add("directions", directions);
                 return data;
             }
-            Dictionary<string, Tensor> dataForDensity = new Dictionary<string, Tensor>
-            {
-                { "positions", positions },
-                { "directions", directions }
-            };
-            Tensor nerfOutputs = mlp.forward(dataForDensity)["raw"].detach().to(torch.float32);
-            Tensor[] compactedResults = RaymarchApi.compactedCoords(nerfOutputs, coords, rayNumsteps, this.targetBatchSize, rgbActivation, densityActivation, dataInfo.aabbMin, dataInfo.aabbMax, this.bgColor);
+            Tensor sigmaOutput = mlp.density(positions).detach().to(torch.float32);
+            Tensor[] compactedResults = RaymarchApi.compactedCoords(sigmaOutput, coords, rayNumsteps, this.targetBatchSize, densityActivation, dataInfo.aabbMin, dataInfo.aabbMax);
 
             Tensor compactedCoords = compactedResults[0];
             Tensor rayNumstepsCompacted = compactedResults[1];
