@@ -12,12 +12,13 @@ namespace InstantNeRF
             uint positionDims = 3;
             uint directionDims = 3;
             uint extraDims = 0;
-            uint offsetStartToDirection = positionDims;
+            uint offsetStartToDirection = positionDims + extraDims;
             tcnnMLP = new TcnnNerfModule("TcnnMLP", positionDims, directionDims, extraDims, offsetStartToDirection, encodingPos, encodingDir, networkSigma, networkColor);
         }
 
         public Dictionary<string, Tensor> forward(Dictionary<string, Tensor> data, bool inference = true)
         {
+            // format the input data
             Tensor positions = data["positions"];
             Tensor directions = data["directions"];
             long batchSize = positions.size(0);
@@ -35,9 +36,9 @@ namespace InstantNeRF
                 output = tcnnMLP.forward(input);
             }
 
+            // remove the padding and flatten the output
             Tensor color = output.slice(1, 0, 3, 1);
             Tensor sigma = output.slice(1, 3, 4, 1);
-
             Tensor outputsFlat = torch.cat(new List<Tensor>() { color, sigma }, -1).to(torch.float32).contiguous();
 
             data.Add("raw", outputsFlat.reshape(batchSize, outputsFlat.size(-1)));
@@ -48,6 +49,8 @@ namespace InstantNeRF
         {
             Console.WriteLine("D E N S I T Y");
             Tensor output = tcnnMLP.density(positionsFlat);
+
+            //remove the feature vectors to extract sigma
             long lastDim = output.dim() - 1L;
             Tensor sigma = output.slice(lastDim, 0L, 1L, 1L).squeeze(lastDim);
             return sigma;

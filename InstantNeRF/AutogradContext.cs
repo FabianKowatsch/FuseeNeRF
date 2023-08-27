@@ -3,7 +3,7 @@ using static TorchSharp.torch;
 
 namespace InstantNeRF
 {
-
+    // Context classes store results for the backward pass to compute gradients
     class AutogradContext : BasicContext
     {
         public AutogradContext(NerfModuleWrapper module, float lossScale) : base()

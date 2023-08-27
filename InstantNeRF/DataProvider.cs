@@ -34,7 +34,7 @@ namespace InstantNeRF
         public Tensor raysAndRGBS;
         public long batchSize;
 
-        public DataProvider(Device device, string dataPath, string jsonName, string mode, float downScale, float aabbScale, float aabbMin, float aabbMax, float[] offset, float[]bgColor, int numRays, bool preload, string datasetType, bool useRandomBgColor)
+        public DataProvider(Device device, string dataPath, string jsonName, string mode, float downScale, float aabbScale, float aabbMin, float aabbMax, float[] offset, float[] bgColor, int numRays, bool preload, string datasetType, bool useRandomBgColor)
         {
             this.device = device;
             this.mode = Utils.modeFromString(mode);
@@ -47,6 +47,9 @@ namespace InstantNeRF
             this.numRays = numRays;
             this.dataPath = dataPath;
             this.useRandomBgColor = useRandomBgColor;
+
+            // Extract transforms and ground truth data from the dataset
+
             string pathToTransforms = Path.Combine(dataPath, jsonName + ".json");
             if (File.Exists(pathToTransforms))
             {
@@ -83,9 +86,9 @@ namespace InstantNeRF
 
             float[] rawIntrinsics = extractIntrinsics();
 
-            float[,] intrinsicsArray = new float[,] { 
+            float[,] intrinsicsArray = new float[,] {
                 { rawIntrinsics[0], 0f, rawIntrinsics[2] },
-                {0f, rawIntrinsics[1], rawIntrinsics[3] }, 
+                {0f, rawIntrinsics[1], rawIntrinsics[3] },
                 {0f, 0f, 1f }
             };
             this.intrinsics = torch.from_array(intrinsicsArray);
@@ -113,6 +116,8 @@ namespace InstantNeRF
             }
             this.currentIndex = 0;
         }
+
+        // Calculate camera intrinsics by using the values provided from the transforms.json file
         private float[] extractIntrinsics()
         {
             float focusX;
@@ -145,6 +150,7 @@ namespace InstantNeRF
             return new float[4] { focusX, focusY, centerX, centerY };
         }
 
+        // Extract the image data depending on the dataset type and image file type
         private (Tensor poses, Tensor images) extractImageDataFromJSON(bool useSynthetic)
         {
             List<Tensor> posesList = new List<Tensor>();
@@ -292,7 +298,8 @@ namespace InstantNeRF
             }
         }
 
-        public Dictionary<string, Tensor> getTrainData() 
+        // Indexes into the total training data and copies a batch to the GPU
+        public Dictionary<string, Tensor> getTrainData()
         {
             Console.WriteLine("current index: " + this.currentIndex);
             if (this.currentIndex + numRays > this.raysAndRGBS.size(0))
@@ -312,7 +319,7 @@ namespace InstantNeRF
 
             //Color perturbation while training
             Tensor bgColor;
-            if(useRandomBgColor)
+            if (useRandomBgColor)
             {
                 bgColor = torch.rand(gtColors.shape, torch.float32);
             }
@@ -328,7 +335,7 @@ namespace InstantNeRF
 
             this.currentIndex += numRays;
 
-            Dictionary<string, Tensor> results = new Dictionary<string, Tensor>() 
+            Dictionary<string, Tensor> results = new Dictionary<string, Tensor>()
             {
                 { "raysOrigin", raysO.to(CUDA) },
                 {"raysDirection", raysD.to(CUDA)},

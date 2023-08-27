@@ -53,7 +53,6 @@ namespace InstantNeRF
             Tensor loss = renderer.backward(data["gt"]).mean();
             loss.print();
 
-            //scaler.scale(loss).backward();
             Tensor gradients = mlp.backward(scaler.getScale());
 
             scaler.step(optimizer, gradients);

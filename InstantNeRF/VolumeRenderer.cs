@@ -34,6 +34,7 @@ namespace InstantNeRF
             Dictionary<string, Tensor> result = new Dictionary<string, Tensor>() { };
             if (this.training)
             {
+                // Use a DifferentiableRenderer object to store results for the backward pass, similar to AutogradFunction
                 Tensor numStepsCompacted = data["rayNumstepsCompacted"];
                 Tensor bgColor = data["bgColor"].detach();
                 this.renderer = new DifferentiableRenderer();

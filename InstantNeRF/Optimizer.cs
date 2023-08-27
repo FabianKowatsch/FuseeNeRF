@@ -16,8 +16,10 @@ namespace InstantNeRF
         {
             handle = TcnnWrapper.createOptimizer(config);
 
+            // Store a copy of full precision parameters to accurately perform parameter updates
             (param, paramFP) = mlp.getParameters();
 
+            //allocate memory by retrieving the network layout directly in CUDA
             allocate(mlp.getHandle());
         }
 
