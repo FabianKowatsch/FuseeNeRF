@@ -1,3 +1,20 @@
+/*
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.  All rights reserved.
+ *
+ * NVIDIA CORPORATION and its licensors retain all intellectual property
+ * and proprietary rights in and to this software, related documentation
+ * and any modifications thereto.  Any use, reproduction, disclosure or
+ * distribution of this software and related documentation without an express
+ * license agreement from NVIDIA CORPORATION is strictly prohibited.
+ */
+
+ /** @file   nerf_network.h
+  *  @author Thomas Müller, NVIDIA
+  *  @brief  A network that first processes 3D position to density and
+  *          subsequently direction to color.
+  */
+
+  // custom implementation based on https://github.com/NVlabs/instant-ngp/blob/master/include/neural-graphics-primitives/nerf_network.h
 #include "nerf_network.h"
 
 namespace ngp {

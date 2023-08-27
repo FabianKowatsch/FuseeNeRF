@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.  All rights reserved.
+ *
+ * NVIDIA CORPORATION and its licensors retain all intellectual property
+ * and proprietary rights in and to this software, related documentation
+ * and any modifications thereto.  Any use, reproduction, disclosure or
+ * distribution of this software and related documentation without an express
+ * license agreement from NVIDIA CORPORATION is strictly prohibited.
+ */
 #pragma once
 #include "raymarch_shared.h"
 
@@ -62,12 +71,6 @@ struct CameraDistortion
 };
 
 
-// struct NerfPosition
-// {
-//     NGP_HOST_DEVICE NerfPosition(const Eigen::Vector3f &pos, float dt) : p{pos} {}
-//     Eigen::Vector3f p;
-// };
-
 struct NerfDirection
 {
     NGP_HOST_DEVICE NerfDirection(const Eigen::Vector3f &dir, float dt) : d{dir} {}
@@ -102,15 +105,6 @@ struct NerfCoordinate
     NerfDirection dir;
 };
 
-// struct NerfPayload
-// {
-//  Eigen::Vector3f origin;
-//  Eigen::Vector3f dir;
-//  float t;
-//  uint32_t idx;
-//  uint16_t n_steps;
-//  bool alive;
-// };
 
 template <typename T>
 struct PitchedPtr
@@ -164,66 +158,9 @@ struct vector_t
     T data[N_ELEMS];
     static constexpr uint32_t N = N_ELEMS;
 };
-// ==========================
-// other needed functions
 
-
-// __host__ __device__ inline uint32_t expand_bits(uint32_t v)
-// {
-//     v = (v * 0x00010001u) & 0xFF0000FFu;
-//     v = (v * 0x00000101u) & 0x0F00F00Fu;
-//     v = (v * 0x00000011u) & 0xC30C30C3u;
-//     v = (v * 0x00000005u) & 0x49249249u;
-//     return v;
-// }
-
-// __host__ __device__ inline uint32_t morton3D(uint32_t x, uint32_t y, uint32_t z)
-// {
-//     uint32_t xx = expand_bits(x);
-//     uint32_t yy = expand_bits(y);
-//     uint32_t zz = expand_bits(z);
-//     return xx | (yy << 1) | (zz << 2);
-// }
-
-// __host__ __device__ inline uint32_t morton3D_invert(uint32_t x)
-// {
-//     x = x & 0x49249249;
-//     x = (x | (x >> 2)) & 0xc30c30c3;
-//     x = (x | (x >> 4)) & 0x0f00f00f;
-//     x = (x | (x >> 8)) & 0xff0000ff;
-//     x = (x | (x >> 16)) & 0x0000ffff;
-//     return x;
-// }
-
-// template <typename T>
-// TCNN_HOST_DEVICE T div_round_up(T val, T divisor)
-// {
-//     return (val + divisor - 1) / divisor;
-// }
 
 constexpr uint32_t batch_size_granularity = 128;
-
-// template <typename T>
-// constexpr uint32_t n_blocks_linear(T n_elements)
-// {
-//     return (uint32_t)div_round_up(n_elements, (T)n_threads_linear);
-// }
-// template <typename K, typename T, typename... Types>
-// inline void linear_kernel(K kernel, uint32_t shmem_size, cudaStream_t stream, T n_elements, Types... args)
-// {
-//     if (n_elements <= 0)
-//     {
-//         return;
-//     }
-//     kernel<<<n_blocks_linear(n_elements), n_threads_linear, shmem_size, stream>>>((uint32_t)n_elements, args...);
-// }
-
-// Used to index into the PRNG stream. Must be larger than the number of
-// samples consumed by any given training ray.
-// inline constexpr __device__ __host__ uint32_t N_MAX_RANDOM_SAMPLES_PER_RAY() { return 8; }
-
-// Any alpha below this is considered "invisible" and is thus culled away.
-// inline constexpr __device__ __host__ float NERF_MIN_OPTICAL_THICKNESS() { return 0.01f; }
 
 static constexpr uint32_t MARCH_ITER = 10000;
 
@@ -240,18 +177,6 @@ inline __host__ __device__ float calc_cone_angle(float cosine, const Eigen::Vect
     return cone_angle_constant;
 }
 
-// inline __host__ __device__ uint32_t grid_mip_offset(uint32_t mip) {
-//     return (NERF_GRIDSIZE() * NERF_GRIDSIZE() * NERF_GRIDSIZE()) * mip;
-// }
-
-
-
-// inline __host__ __device__ float calc_dt(float t, float cone_angle)
-// {
-//  // TODO: use origin dt
-//  return MIN_CONE_STEPSIZE() * 0.5;
-//  // return clamp(t * cone_angle, MIN_CONE_STEPSIZE(), MAX_CONE_STEPSIZE());
-// }
 
 inline __device__ float distance_to_next_voxel(const Vector3f &pos, const Vector3f &dir, const Vector3f &idir, uint32_t res)
 { // dda like step
@@ -315,13 +240,7 @@ inline __device__ float &cascaded_grid_at(Vector3f pos, float *cascaded_grid, ui
     return cascaded_grid[idx + grid_mip_offset(mip)];
 }
 
-// inline __device__ Vector3f warp_position(const Vector3f &pos, const BoundingBox &aabb)
-// {
-//     // return {logistic(pos.x() - 0.5f), logistic(pos.y() - 0.5f), logistic(pos.z() - 0.5f)};
-//     // return pos;
 
-//     return aabb.relative_pos(pos);
-// }
 
 inline __device__ Vector3f unwarp_position(const Vector3f &pos, const BoundingBox &aabb)
 {
@@ -364,11 +283,6 @@ inline __device__ Vector3f unwarp_direction_derivative(const Vector3f &dir)
     return Vector3f::Constant(2.0f);
 }
 
-// inline __device__ float warp_dt(float dt)
-// {
-//     float max_stepsize = MIN_CONE_STEPSIZE() * (1 << (NERF_CASCADES() - 1));
-//     return (dt - MIN_CONE_STEPSIZE()) / (max_stepsize - MIN_CONE_STEPSIZE());
-// }
 
 inline __device__ float unwarp_dt(float dt)
 {
@@ -383,22 +297,6 @@ __device__ inline float random_val(uint32_t seed, uint32_t idx)
     return rng.next_float();
 }
 
-// template <typename RNG>
-// inline __host__ __device__ float random_val(RNG &rng)
-// {
-//     return rng.next_float();
-// }
-
-// template <typename RNG>
-// inline __host__ __device__ Eigen::Vector3f random_val_3d(RNG &rng)
-// {
-//     return {rng.next_float(), rng.next_float(), rng.next_float()};
-// }
-
-
-
-
-
 
 
 template <typename RNG>
@@ -407,20 +305,6 @@ inline __host__ __device__ Eigen::Vector2f random_val_2d(RNG &rng)
     return {rng.next_float(), rng.next_float()};
 }
 
-
-
-// enum class ENerfActivation : int
-// {
-//     None,
-//     ReLU,
-//     Logistic,
-//     Exponential,
-// };
-
-// __host__ __device__ inline float logistic(const float x)
-// {
-//     return 1.0f / (1.0f + expf(-x));
-// }
 
 inline __device__ float network_to_rgb(float val, ENerfActivation activation)
 {
@@ -448,23 +332,6 @@ inline __device__ Array3f network_to_rgb(const vector_t<T, 4> &local_network_out
         network_to_rgb(float(local_network_output[2]), activation)};
 }
 
-// inline __device__ float network_to_density(float val, ENerfActivation activation)
-// {
-//     switch (activation)
-//     {
-//     case ENerfActivation::None:
-//         return val;
-//     case ENerfActivation::ReLU:
-//         return val > 0.0f ? val : 0.0f;
-//     case ENerfActivation::Logistic:
-//         return logistic(val);
-//     case ENerfActivation::Exponential:
-//         return __expf(val);
-//     default:
-//         assert(false);
-//     }
-//     return 0.0f;
-// }
 
 
 inline __host__ __device__ float linear_to_srgb(float linear)

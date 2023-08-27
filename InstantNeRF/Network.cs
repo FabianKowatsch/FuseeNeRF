@@ -14,8 +14,6 @@ namespace InstantNeRF
         public MLP mlp;
         public GradScaler scaler; 
         private VolumeRenderer renderer;
-        private readonly int wantedBatchSize = 1024;
-        private readonly int chunkSIze = 128;
         public Network(GridSampler sampler, float gradScale, float[] bgColor) : base("NerfNetwork") {
             this.sampler = sampler;
 
@@ -77,53 +75,6 @@ namespace InstantNeRF
             Dictionary<string, Tensor> result = this.forward(data);
 
             return result["rgb"];
-        }
-        public Dictionary<string, Tensor> batchifyForward( Dictionary<string, Tensor> data) //smaller batches to avoid memory problems
-        {
-            Dictionary<string, Tensor> totalData = new Dictionary<string, Tensor>();
-            for ( var i = 0; i < wantedBatchSize; i = i + chunkSIze ) 
-            {
-                Dictionary<string, Tensor> chunk = new Dictionary<string, Tensor>();
-
-                foreach ( var key in data.Keys ) 
-                {
-                    if (data[key].size(0) == wantedBatchSize)
-                    {
-                        chunk[key] = data[key].slice(0, i, i+chunkSIze, 1);
-                    }
-                    else
-                    {
-                        chunk[key] = data[key];
-                    }
-                }
-
-                Dictionary<string, Tensor> result = this.forward(chunk);
-
-                foreach (var key in result.Keys)
-                {
-                    totalData.Add(key, result[key]);
-                }
-            }
-            return totalData;
-
-        }
-
-        public Tensor unfoldData( Tensor data)
-        {
-            if(data.Dimensions > 1)
-            {
-                long batchSize = data.size(0);
-                
-                List<Tensor> batch = new List<Tensor>();
-                for (int i = 0; i < batchSize; i++)
-                {
-                    batch.Add(data[i]);
-                }
-                data = torch.cat(batch, 0);
-            }
-            return data;
-        } 
-
-
+        }      
     }
 }

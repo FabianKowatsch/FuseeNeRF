@@ -14,6 +14,7 @@
   *          subsequently direction to color.
   */
 
+// custom implementation based on https://github.com/NVlabs/instant-ngp/blob/master/include/neural-graphics-primitives/nerf_network.h
 #pragma once
 
 #include <cuda_runtime.h>

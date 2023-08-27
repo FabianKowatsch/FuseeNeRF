@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.  All rights reserved.
+ *
+ * NVIDIA CORPORATION and its licensors retain all intellectual property
+ * and proprietary rights in and to this software, related documentation
+ * and any modifications thereto.  Any use, reproduction, disclosure or
+ * distribution of this software and related documentation without an express
+ * license agreement from NVIDIA CORPORATION is strictly prohibited.
+ */
+
+ /** @file   nerf_device.cuh
+  *  @author Thomas Müller & Alex Evans, NVIDIA
+  */
+
+// a selection of functions based on https://github.com/NVlabs/instant-ngp/blob/master/include/neural-graphics-primitives/nerf_device.cuh
 #ifndef raymarch_shared_h
 #define raymarch_shared_h
 #pragma once
@@ -93,11 +108,6 @@ struct NerfPosition
 	Eigen::Vector3f p;
 };
 
-// __device__ float warp_dt(float dt)
-// {
-// 	float max_stepsize = MIN_CONE_STEPSIZE() * (1 << (NERF_CASCADES() - 1));
-// 	return (dt - MIN_CONE_STEPSIZE()) / (max_stepsize - MIN_CONE_STEPSIZE());
-// }
 
 template <typename T>
 TCNN_HOST_DEVICE void host_device_swap(T &a, T &b)

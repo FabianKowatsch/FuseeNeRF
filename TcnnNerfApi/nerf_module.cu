@@ -22,10 +22,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/** @file   cpp_api.cu
- *  @author Thomas Müller, NVIDIA
- *  @brief  API to be consumed by cpp (non-CUDA) programs.
- */
+ /** @file   cpp_api.cu
+  *  @author Thomas Müller, NVIDIA
+  *  @brief  API to be consumed by cpp (non-CUDA) programs.
+  */
+// custom implementation based on https://github.com/NVlabs/tiny-cuda-nn/blob/master/src/cpp_api.cu
 #include <common.h>
 #include <cpp_api.h>
 #include <encoding.h>

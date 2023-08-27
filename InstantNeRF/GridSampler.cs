@@ -1,4 +1,22 @@
-﻿using System;
+﻿/*
+  Copyright 2022 XRNerf Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+ */
+
+// custom implementation in C# based on https://github.com/openxrlab/xrnerf/blob/main/xrnerf/models/samplers/ngp_grid_sampler.py
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,8 +34,6 @@ namespace InstantNeRF
         private int nElementsDensity;
         private int gridsize3D;
         private int sizeIncludingMips;
-        private float nearDistance;
-        private float[] bgColor;
         public int densityActivation;
         public int rgbActivation;
         private int targetBatchSize;
@@ -42,7 +58,6 @@ namespace InstantNeRF
         {
             this.updateGridFrequency = updateGridFrequency;
             this.nRays = dataProvider.numRays;
-            this.nearDistance = nearDistance;
             this.densityActivation = densityActivation;
             this.rgbActivation = rgbActivation;
             this.targetBatchSize = targetBatchSize;
@@ -66,7 +81,6 @@ namespace InstantNeRF
 
             this.iteration = 0;
             this.emaStep = 0;
-            this.bgColor = dataProvider.bgColor;
             long nImages = dataProvider.images.size(0);
             Tensor focalLengths = dataProvider.focals;
             Tensor metaData = torch.from_array(new float[] { 0f, 0f, 0f, 0f, 0.5f, 0.5f, focalLengths[0].item<float>(), focalLengths[1].item<float>(), 0f, 0f, 0f });
