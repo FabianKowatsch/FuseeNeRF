@@ -22,19 +22,11 @@ namespace InstantNeRF
         }
         public Dictionary<string, Tensor> forward( Dictionary<string, Tensor> data) 
         {
-            Console.WriteLine("-:-:- before sampling -:-:-");
-
             data = this.sampler.Sample(data, this.mlp);
 
-            Console.WriteLine("-:-:- after sampling -:-:-");
-
             data = this.mlp.forward(data, !mlp.training);
-            
-            Console.WriteLine("-:-:- after mlp -:-:-");
 
             data = this.renderer.forward(sampler, data);
-
-            Console.WriteLine("-:-:- after renderer -:-:-");
 
             return data;
         }
@@ -47,18 +39,14 @@ namespace InstantNeRF
             Dictionary<string, Tensor> result = forward(data);
             data["alpha"].detach_();
 
-            Console.WriteLine("------------------------");
-            Console.WriteLine("LOSS");
-            Console.WriteLine("------------------------");
             Tensor loss = renderer.backward(data["gt"]).mean();
-            loss.print();
 
             Tensor gradients = mlp.backward(scaler.getScale());
 
             scaler.step(optimizer, gradients);
             return loss;
         }
-        public Tensor testStep(Dictionary<string, Tensor> data)
+        public (Tensor rgb, Tensor alpha) testStep(Dictionary<string, Tensor> data)
         {
             sampler.eval();
             mlp.eval();
@@ -66,7 +54,7 @@ namespace InstantNeRF
 
             Dictionary<string, Tensor> result = this.forward(data);
 
-            return result["rgb"];
+            return (result["rgb"], result["alpha"]);
         }      
     }
 }

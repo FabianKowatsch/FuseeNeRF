@@ -49,26 +49,24 @@ namespace InstantNeRF
             IntPtr alpha_output);
 
         public static (Tensor colors, Tensor alphas) Inference(
-           Tensor output,
-           Tensor positions,
+           Tensor networkOutput,
+           Tensor coordinates,
            Tensor rayNumsteps,
            Tensor bgColorInference,
            int rgbActivation,
            int densityActivation,
-           float aabb0,
-           float aabb1)
+           float aabbMin,
+           float aabbMax)
         {
-            Device device = output.device;
-            positions.detach_();
+            Device device = networkOutput.device;
+            coordinates.detach_();
             rayNumsteps.detach_();
             long nRaysPerBatch = rayNumsteps.size(0);
+
             Tensor rgbs = torch.zeros(new long[] { nRaysPerBatch, 3 }, torch.float32, device);
             Tensor alphas = torch.zeros(new long[] { nRaysPerBatch, 1 }, torch.float32, device);
-            calculateRGBsInferenceApi(output.Handle, positions.Handle, rayNumsteps.Handle, bgColorInference.Handle, rgbActivation, densityActivation, aabb0, aabb1, rgbs.Handle, alphas.Handle);
+            calculateRGBsInferenceApi(networkOutput.Handle, coordinates.Handle, rayNumsteps.Handle, bgColorInference.Handle, rgbActivation, densityActivation, aabbMin, aabbMax, rgbs.Handle, alphas.Handle);
 
-            Utils.printMean(rgbs, "rgbs after inference");
-            Utils.printMean(alphas, "alpha after inference");
-            Utils.printFirstNValues(bgColorInference, 3, "bgColor inference");
             return (rgbs.detach(), alphas.detach());
         }
 
@@ -79,7 +77,7 @@ namespace InstantNeRF
 
             private VolumeRenderingContext? ctx;
             public Tensor Forward(Tensor networkOutput,
-                Tensor positions, 
+                Tensor coordinates, 
                 Tensor rayNumsteps, 
                 Tensor rayNumstepsCompacted, 
                 Tensor bgColorTrain, 
@@ -90,15 +88,16 @@ namespace InstantNeRF
                 float aabbMax)
             {
                 Device device = networkOutput.device;
-                positions.detach_();
+                coordinates.detach_();
                 rayNumsteps.detach_();
                 rayNumstepsCompacted.detach_();
                 densityMean.detach_();
                 long nRaysPerBatch = rayNumsteps.size(0);
+
                 Tensor rgbs = torch.zeros(new long[] { nRaysPerBatch, 3 }, torch.float32, device, requires_grad: true);
 
                 calculateRGBsForwardApi(networkOutput.Handle,
-                    positions.Handle,
+                    coordinates.Handle,
                     rayNumsteps.Handle,
                     rayNumstepsCompacted.Handle,
                     bgColorTrain.Handle,
@@ -109,7 +108,7 @@ namespace InstantNeRF
                     rgbs.Handle);
 
                 this.ctx = new VolumeRenderingContext(rgbActivation, densityActivation, aabbMin, aabbMax);
-                ctx.saveForBackward(new List<Tensor> { networkOutput, rayNumsteps, rayNumstepsCompacted, positions, rgbs, densityMean });
+                ctx.saveForBackward(new List<Tensor> { networkOutput, rayNumsteps, rayNumstepsCompacted, coordinates, rgbs, densityMean });
 
                 return rgbs;
             }

@@ -15,24 +15,31 @@ using System;
 using OpenTK.Mathematics;
 using Fusee.Base.Core;
 using Fusee.Base.Common;
+using Fusee.Engine.Core.Effects;
+using System.Xml.Serialization;
+using TorchSharp.Modules;
 
 namespace FuseeApp
 {
-    [FuseeApplication(Name = "FuseeTestApp", Description = "Yet another FUSEE App.")]
+    [FuseeApplication(Name = "FUSEE NeRF Viewer")]
     public class FuseeNeRF : RenderCanvas
     {
         // angle variables
         private static float _angleHorz, _angleVert, _angleVelHorz, _angleVelVert;
-
         private const float RotationSpeed = 7;
         private const float Damping = 0.8f;
-
-        private SceneContainer _camScene;
+        private SceneContainer _scene;
         private SceneRendererForward _sceneRenderer;
+        private bool _keys;
 
+        private Texture _bltDestinationTex;
+
+        private Transform _simulatingCamPivotTransform;
+        private SceneContainer _camScene;
         private const float ZNear = 0.1f;
         private const float ZFar = 10f;
         private readonly float _fovy = M.PiOver4;
+        private Camera _camera;
 
         private float _focalX;
         private float _focalY;
@@ -40,112 +47,139 @@ namespace FuseeApp
         private float _centerY;
         private int _renderWidth;
         private int _renderHeight;
-        private Texture _texture;
         private int currentStep = 0;
         private int stepsToTrain;
         private DataProvider _dataProvider;
         private Config _config;
-        private Transform _simulatingCamPivotTransform;
-        private Transform _mainCamPivotTransform;
-
         private Trainer _trainer;
-        private Camera _camera;
 
-        private bool _keys;
-
-        private async Task Load()
+        private readonly Camera _uiCam = new(ProjectionMethod.Perspective, 0.1f, 1000, M.PiOver4)
         {
-            //Simulate Camera to get the poses required for inference
-            _camScene = new SceneContainer();
-            _simulatingCamPivotTransform = new Transform();
-            _camera = new Camera(ProjectionMethod.Perspective, ZNear, ZFar, _fovy) { BackgroundColor = float4.Zero };
-            var camNode = new SceneNode()
+            BackgroundColor = float4.One
+        };
+        public CanvasRenderMode CanvasRenderMode
+        {
+            get
             {
-                Name = "SimulatingCamNode",
-                Children = new ChildList()
-                {
-                    new SceneNode()
-                    {
-                        Name = "SimulatingCam",
-                        Components = new List<SceneComponent>()
-                        {
-                            new Transform() { Translation = new float3(0, 0, 0) },
-                            _camera
-
-                        }
-                    }
-                },
-                Components = new List<SceneComponent>()
-                {
-                    _simulatingCamPivotTransform
-                }
-            };
-            _camScene.Children.Add(camNode);
-
-            //Actual Scene containing a Quad with a Texture
-
-            SceneContainer textureScene = new SceneContainer();
-
-            _renderWidth = 800 / (int)_config.imageDownscale;
-            _renderHeight = 800 / (int)_config.imageDownscale;
-            stepsToTrain = (int)_config.stepsToTrain;
-
-            //Setup texture to write to
-            UpdateIntrinsics((float)_renderWidth, (float)_renderHeight, this._fovy);
-
-            byte[] raw = new byte[_renderWidth * _renderHeight * 3];
-            ImagePixelFormat format = new ImagePixelFormat(ColorFormat.RGB);
-            _texture = new Texture(raw, _renderWidth, _renderHeight, format, false, wrapMode: TextureWrapMode.ClampToEdge);
-
-
-            var quad = new SceneNode()
+                return _canvasRenderMode;
+            }
+            set
             {
-                Name = "Quad",
-                Components = new List<SceneComponent>()
+                _canvasRenderMode = value;
+                if (_canvasRenderMode == CanvasRenderMode.World)
                 {
-                    new Plane(),
-                    new Transform() { Translation = new float3(0, 0, 0) },
-                    MakeEffect.FromUnlit(float4.One, _texture),
-                    MakeEffect.Default()
-
+                    _uiCam.ProjectionMethod = ProjectionMethod.Perspective;
                 }
-            };
-            _mainCamPivotTransform = new Transform();
-            var textureCam = new SceneNode()
-            {
-                Name = "MainCamNode",
-                Children = new ChildList()
+                else
                 {
-                    new SceneNode()
-                    {
-                        Name = "MainCam",
-                        Components = new List<SceneComponent>()
-                        {
-                            new Transform() { Translation = new float3(0, 0, -1) },
-                            new Camera(ProjectionMethod.Perspective, ZNear, ZFar, _fovy) { BackgroundColor = float4.Zero }
-
-                        }
-                    }
+                    _uiCam.ProjectionMethod = ProjectionMethod.Orthographic;
                 }
-
-            };
-            textureScene.Children.Add(textureCam);
-            textureScene.Children.Add(quad);
-
-            _sceneRenderer = new SceneRendererForward(textureScene);
-
+            }
         }
+        private CanvasRenderMode _canvasRenderMode;
 
-        public override async Task InitAsync()
+        private float _initCanvasWidth;
+        private float _initCanvasHeight;
+        private float _canvasWidth = 16;
+        private float _canvasHeight = 9;
+
+        private Transform _camPivot;
+
+        //Build a scene graph consisting out of a canvas and other UI elements.
+        private SceneContainer CreateScene()
         {
-            await Load();
-            await base.InitAsync();
+
+
+            var bltTextureNode = TextureNode.Create(
+                "Blt",
+                _bltDestinationTex,
+                GuiElementPosition.GetAnchors(AnchorPos.Middle),
+                GuiElementPosition.CalcOffsets(AnchorPos.DownDownLeft, new float2(0, 0), _initCanvasWidth, _initCanvasHeight, new float2(9, 9)),
+                float2.One);
+
+
+            var canvas = new CanvasNode(
+                "Canvas",
+                _canvasRenderMode,
+                new MinMaxRect
+                {
+                    Min = new float2(-_canvasWidth / 2, -_canvasHeight / 2f),
+                    Max = new float2(_canvasWidth / 2, _canvasHeight / 2f)
+                })
+            {
+                Children = new ChildList()
+                {
+                    //Simple Texture Node, contains a Blt"ed" texture.
+                    bltTextureNode
+                }
+            };
+
+            canvas.AddComponent(MakeEffect.FromDiffuseSpecular((float4)ColorUint.Red));
+            canvas.AddComponent(new Plane());
+
+            _camPivot = new Transform()
+            {
+                Translation = new float3(0, 0, 0),
+                Rotation = float3.Zero
+            };
+
+            return new SceneContainer
+            {
+                Children = new List<SceneNode>
+                {
+                    new SceneNode()
+                    {
+                        Name = "CamPivot",
+                        Components = new List<SceneComponent>()
+                        {
+                            _camPivot
+                        },
+                        Children = new ChildList()
+                        {
+                            new SceneNode()
+                            {
+                                Name = "MainCam",
+                                Components = new List<SceneComponent>()
+                                {
+                                    new Transform()
+                                    {
+                                        Translation = new float3(0, 0, -15),
+                                        Rotation = float3.Zero
+                                    },
+                                    _uiCam
+                                }
+                            },
+                        }
+                    },
+                    //Add canvas.
+                    new SceneNode()
+                    {
+                        Components = new List<SceneComponent>()
+                        {
+                            new Transform()
+                            {
+                                Translation = new float3(0, 0, 0),
+                                Rotation = new float3(0, M.PiOver4, 0)
+                            }
+                        },
+                        Children = new ChildList()
+                        {
+                            canvas
+                        }
+                    },
+
+                }
+            };
         }
 
 
         // Init is called on startup.
         public override void Init()
         {
+            /*
+             * NERF =====================================================================================================================================================
+             */
+
             try
             {
                 string torchDir = Environment.GetEnvironmentVariable("TORCH_DIR") ?? throw new Exception("Could not find variable TORCH_DIR");
@@ -189,74 +223,84 @@ namespace FuseeApp
                 Console.WriteLine(e);
             }
 
-        }
+            /*
+            * FUSEE =====================================================================================================================================================
+            */
+            CanvasRenderMode = CanvasRenderMode.Screen;
 
+            if (_canvasRenderMode == CanvasRenderMode.Screen)
+            {
+                _initCanvasWidth = Width / 100f;
+                _initCanvasHeight = Height / 100f;
+            }
+            else
+            {
+                _initCanvasWidth = 16;
+                _initCanvasHeight = 9;
+            }
+            _canvasHeight = _initCanvasHeight;
+            _canvasWidth = _initCanvasWidth;
+
+
+            _renderWidth = 800 / (int)_config.imageDownscale;
+            _renderHeight = 800 / (int)_config.imageDownscale;
+            stepsToTrain = (int)_config.stepsToTrain;
+
+            UpdateIntrinsics((float)_renderWidth, (float)_renderHeight, this._fovy);
+            byte[] raw = new byte[_renderWidth * _renderHeight * 3];
+            for (int i = 0; i < raw.Length; i++)
+            {
+                raw[i] = 0;
+            }
+            ImagePixelFormat format = new ImagePixelFormat(ColorFormat.RGB);
+            _bltDestinationTex = new Texture(raw, _renderWidth, _renderHeight, format, false, wrapMode: TextureWrapMode.Repeat, filterMode: TextureFilterMode.Linear);
+
+
+            // Actual rendered scene
+            _scene = CreateScene();
+
+            //Scene simulated the camera rendering the NeRF
+            //Simulate Camera to get the poses required for inference
+            _camScene = new SceneContainer();
+            _simulatingCamPivotTransform = new Transform();
+            _camera = new Camera(ProjectionMethod.Perspective, ZNear, ZFar, _fovy) { BackgroundColor = float4.Zero };
+            var camNode = new SceneNode()
+            {
+                Name = "SimulatingCamNode",
+                Children = new ChildList()
+                {
+                    new SceneNode()
+                    {
+                        Name = "SimulatingCam",
+                        Components = new List<SceneComponent>()
+                        {
+                            new Transform() { Translation = new float3(0, 0, 0) },
+                            _camera
+
+                        }
+                    }
+                },
+                Components = new List<SceneComponent>()
+                {
+                    _simulatingCamPivotTransform
+                }
+            };
+            _camScene.Children.Add(camNode);
+            _sceneRenderer = new SceneRendererForward(_scene);
+        }
         public override void Update()
         {
-
-            if(currentStep == 0)
-            {
-                setInitialPose();
-            }
-
             Controls();
-
             if (currentStep <= stepsToTrain)
             {
                 TrainStep();
-                if (currentStep % 2 == 0)
-                {
-                    InferenceStep();
-                }
+                InferenceStep();
+
                 if(currentStep == stepsToTrain)
                 {
                     Console.ReadLine();
                 }
             }
-
-        }
-
-        private void Controls()
-        {
-            //_simulatingCamPivotTransform.RotationQuaternion = QuaternionF.FromEuler(_angleVert, _angleHorz, 0);
-            //_mainCamPivotTransform.RotationQuaternion = QuaternionF.FromEuler(_angleVert, _angleHorz, 0);
-
-            // Mouse and keyboard movement
-            if (Keyboard.LeftRightAxis != 0 || Keyboard.UpDownAxis != 0)
-            {
-                _keys = true;
-            }
-
-            if (Mouse.LeftButton)
-            {
-                _keys = false;
-                _angleVelHorz = RotationSpeed * Mouse.XVel * DeltaTimeUpdate * 0.0005f;
-                _angleVelVert = RotationSpeed * Mouse.YVel * DeltaTimeUpdate * 0.0005f;
-            }
-            else if (Touch != null && Touch.GetTouchActive(TouchPoints.Touchpoint_0))
-            {
-                _keys = false;
-                var touchVel = Touch.GetVelocity(TouchPoints.Touchpoint_0);
-                _angleVelHorz = RotationSpeed * touchVel.x * DeltaTimeUpdate * 0.0005f;
-                _angleVelVert = RotationSpeed * touchVel.y * DeltaTimeUpdate * 0.0005f;
-            }
-            else
-            {
-                if (_keys)
-                {
-                    _angleVelHorz = RotationSpeed * Keyboard.LeftRightAxis * DeltaTimeUpdate;
-                    _angleVelVert = RotationSpeed * Keyboard.UpDownAxis * DeltaTimeUpdate;
-                }
-                else
-                {
-                    var curDamp = (float)System.Math.Exp(-Damping * DeltaTimeUpdate);
-                    _angleVelHorz *= curDamp;
-                    _angleVelVert *= curDamp;
-                }
-            }
-
-            _angleHorz += _angleVelHorz;
-            _angleVert += _angleVelVert;
         }
 
         private void InferenceStep()
@@ -279,14 +323,15 @@ namespace FuseeApp
             };
             Tensor intrinsics = torch.from_array(intrinsicsArray);
 
-            byte[] buffer = _trainer.inferenceStepRT(poseConverted, intrinsics, _renderHeight, _renderWidth);
+            byte[] buffer = _trainer.inferenceStep(poseConverted, intrinsics, _renderHeight, _renderWidth, _dataProvider);
             ImagePixelFormat format = new ImagePixelFormat(ColorFormat.RGB);
             ImageData data = new ImageData(buffer, _renderWidth, _renderHeight, format);
-            _texture.Blt(0, 0, data, width: _renderWidth, height: _renderHeight);
+
+            _bltDestinationTex.Blt(0, 0, data);
         }
         private void TrainStep()
         {
-            float loss = _trainer.trainStepRT(currentStep, _dataProvider);
+            float loss = _trainer.trainStep(currentStep, _dataProvider);
             currentStep++;
         }
 
@@ -294,22 +339,12 @@ namespace FuseeApp
         {
             float[,] startingPose = _dataProvider.getStartingPose();
             float4x4 matrix = float4x4.Zero;
-            matrix.Row1 = new float4(startingPose[0,0], startingPose[0, 1], startingPose[0, 2], startingPose[0, 3]);
+            matrix.Row1 = new float4(startingPose[0, 0], startingPose[0, 1], startingPose[0, 2], startingPose[0, 3]);
             matrix.Row2 = new float4(startingPose[1, 0], startingPose[1, 1], startingPose[1, 2], startingPose[1, 3]);
             matrix.Row3 = new float4(startingPose[2, 0], startingPose[2, 1], startingPose[2, 2], startingPose[2, 3]);
             matrix.Row4 = new float4(startingPose[3, 0], startingPose[3, 1], startingPose[3, 2], startingPose[3, 3]);
             _simulatingCamPivotTransform.Matrix = matrix;
         }
-
-        // RenderAFrame is called once a frame
-        public override void RenderAFrame()
-        {
-            _sceneRenderer.Render(RC);
-
-            // Swap buffers: Show the contents of the backbuffer (containing the currently rendered frame) on the front buffer.
-            Present();
-        }
-
 
         private void UpdateIntrinsics(float sensorWidth, float sensorHeight, float fov)
         {
@@ -317,6 +352,59 @@ namespace FuseeApp
             _focalY = (sensorHeight / 2f) / Convert.ToSingle(MathHelper.Tan(Convert.ToDouble(fov / 2d)));
             _centerX = sensorWidth / 2;
             _centerY = sensorHeight / 2;
+        }
+        private void Controls()
+        {
+            // Mouse and keyboard movement
+            if (Input.Keyboard.LeftRightAxis != 0 || Input.Keyboard.UpDownAxis != 0)
+            {
+                _keys = true;
+            }
+
+            if (Input.Mouse.LeftButton)
+            {
+                _keys = false;
+                _angleVelHorz = RotationSpeed * Input.Mouse.XVel * Time.DeltaTimeUpdate * 0.0005f;
+                _angleVelVert = RotationSpeed * Input.Mouse.YVel * Time.DeltaTimeUpdate * 0.0005f;
+            }
+            else if (Input.Touch.GetTouchActive(TouchPoints.Touchpoint_0))
+            {
+                _keys = false;
+                var touchVel = Input.Touch.GetVelocity(TouchPoints.Touchpoint_0);
+                _angleVelHorz = RotationSpeed * touchVel.x * Time.DeltaTimeUpdate * 0.0005f;
+                _angleVelVert = RotationSpeed * touchVel.y * Time.DeltaTimeUpdate * 0.0005f;
+            }
+            else
+            {
+                if (_keys)
+                {
+                    _angleVelHorz = RotationSpeed * Input.Keyboard.LeftRightAxis * Time.DeltaTimeUpdate;
+                    _angleVelVert = RotationSpeed * Input.Keyboard.UpDownAxis * Time.DeltaTimeUpdate;
+                }
+                else
+                {
+                    var curDamp = (float)System.Math.Exp(-Damping * Time.DeltaTimeUpdate);
+                    _angleVelHorz *= curDamp;
+                    _angleVelVert *= curDamp;
+                }
+            }
+
+            _angleHorz += _angleVelHorz;
+            _angleVert += _angleVelVert;
+
+            _camPivot.RotationQuaternion = QuaternionF.FromEuler(_angleVert, _angleHorz, 0);
+        }
+
+
+
+        // RenderAFrame is called once a frame
+        public override void RenderAFrame()
+        {
+
+            _sceneRenderer.Render(RC);
+
+            // Swap buffers: Show the contents of the back buffer (containing the currently rendered frame) on the front buffer.
+            Present();
         }
     }
 }

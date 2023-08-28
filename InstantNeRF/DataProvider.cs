@@ -187,7 +187,7 @@ namespace InstantNeRF
 
                     image = Utils.srgbToLinear(image);
 
-                    if (counter == 8)
+                    if (counter == 0)
                     {
                         initialPose = mtx;
                     }
@@ -301,7 +301,6 @@ namespace InstantNeRF
         // Indexes into the total training data and copies a batch to the GPU
         public Dictionary<string, Tensor> getTrainData()
         {
-            Console.WriteLine("current index: " + this.currentIndex);
             if (this.currentIndex + numRays > this.raysAndRGBS.size(0))
                 this.currentIndex = 0;
 

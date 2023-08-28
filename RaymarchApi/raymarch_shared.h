@@ -64,7 +64,7 @@ inline constexpr __device__ float SQRT3() { return 1.73205080757f; }
 inline constexpr __device__ float STEPSIZE() { return (SQRT3() / NERF_STEPS()); } // for nerf raymarch
 inline constexpr __device__ float MIN_CONE_STEPSIZE() { return STEPSIZE(); }
 // size of the density/occupancy grid in number of cells along an axis.
-inline constexpr __device__ uint32_t NERF_GRIDSIZE() {return 64;}
+inline constexpr __device__ uint32_t NERF_GRIDSIZE() {return 128;}
 
 // Maximum step size is the width of the coarsest gridsize cell.
 inline constexpr __device__ float MAX_CONE_STEPSIZE() { return STEPSIZE() * (1<<(NERF_CASCADES()-1)) * NERF_STEPS() / NERF_GRIDSIZE(); }

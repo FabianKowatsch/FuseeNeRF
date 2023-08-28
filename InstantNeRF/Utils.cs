@@ -73,17 +73,33 @@ namespace InstantNeRF
             //return result.permute(0, 2, 1);
             return result;
         }
-        public static Tensor matrixToNGP(Tensor matrix, float scale, float[] offset) 
+        public static Tensor matrixToNGP(Tensor matrix, float scale, float[] offset)
         {
-            TorchSharp.Utils.TensorAccessor<float> pose = matrix.data<float>();
-            float[,] output = new float[,]
-            {
-                {pose[1,0], -pose[1,1], -pose[1,2], pose[1,3] * scale + offset[0]},
-                 {pose[2,0], -pose[2,1], -pose[2,2], pose[2,3] * scale + offset[1]},
-                  {pose[0,0], -pose[0,1], -pose[0,2], pose[0,3] * scale + offset[2]}
+            /*
+           TorchSharp.Utils.TensorAccessor<float> pose = matrix.data<float>();
+           float[,] output = new float[,]
+           {
+               {pose[1,0], -pose[1,1], -pose[1,2], pose[1,3] * scale + offset[0]},
+                {pose[2,0], -pose[2,1], -pose[2,2], pose[2,3] * scale + offset[1]},
+                 {pose[0,0], -pose[0,1], -pose[0,2], pose[0,3] * scale + offset[2]}
 
-            };
-            return torch.from_array(output, torch.float32);
+           };
+           return torch.from_array(output, dtype: torch.float32);
+           */
+
+
+            Tensor ngpMatrix = matrix.slice(0, 0, 3, 1).slice(1, 0, 4, 1).t();
+            ngpMatrix[0] *= 1;
+            ngpMatrix[1] *= -1;
+            ngpMatrix[2] *= -1;
+            ngpMatrix[3, 0] = ngpMatrix[3, 0] * scale + offset[0];
+            ngpMatrix[3, 1] = ngpMatrix[3, 1] * scale + offset[1];
+            ngpMatrix[3, 2] = ngpMatrix[3, 2] * scale + offset[2];
+
+            Tensor permutation = torch.from_array(new long[] { 1, 2, 0 }, dtype: torch.int64);
+            ngpMatrix = ngpMatrix.index_select(1, permutation);
+            return ngpMatrix.t();
+
         }
 
         public static Tensor loadRays(Tensor poses, Tensor images, Tensor K, int width, int height)
@@ -95,15 +111,15 @@ namespace InstantNeRF
             {
                 (Tensor origins, Tensor dirs) = getRaysFromPose(width, height, K, poses[i]);
 
-                Tensor raysResult = torch.concatenate(new List<Tensor>() {origins, dirs }, 2);
+                Tensor raysResult = torch.concatenate(new List<Tensor>() { origins, dirs }, 2);
                 raysList.Add(raysResult);
             }
             Tensor rays = torch.stack(raysList, 0);
-            result = torch.concatenate(new List<Tensor>() {rays, images}, 3); // [N, H, W, ro[3] + rd[3] + rgba[4], added rgba]
+            result = torch.concatenate(new List<Tensor>() { rays, images }, 3); // [N, H, W, ro[3] + rd[3] + rgba[4], added rgba]
 
-            Tensor imageIndices = torch.arange(images.shape[0]).reshape(-1,1,1,1); // [N,1,1,1]
+            Tensor imageIndices = torch.arange(images.shape[0]).reshape(-1, 1, 1, 1); // [N,1,1,1]
 
-            imageIndices = torch.broadcast_to(imageIndices, result.shape[0], result.shape[1], result.shape[2], 1 ); // [N, H, W, 1]
+            imageIndices = torch.broadcast_to(imageIndices, result.shape[0], result.shape[1], result.shape[2], 1); // [N, H, W, 1]
 
             result = torch.concatenate(new List<Tensor>() { result, imageIndices }, 3); // [N, H, W, 10+1, added indices]
 
@@ -114,7 +130,8 @@ namespace InstantNeRF
 
         public static (Tensor rayOrigins, Tensor rayDirections) getRaysFromPose(int width, int height, Tensor K, Tensor camToWorld)
         {
-            Tensor[] ij = torch.meshgrid(new List<Tensor> { torch.linspace(0, width - 1, width), torch.linspace(0, height - 1, height) });
+
+            Tensor[] ij = torch.meshgrid(new List<Tensor> { torch.arange(0, width, 1), torch.arange(0, height, 1) });
             Tensor i = ij[0].t() + 0.5f;
             Tensor j = ij[1].t() + 0.5f;
             Tensor directions = torch.stack(new List<Tensor> { (i - K[0][2]) / K[0][0], (j - K[1][2]) / K[1][1], torch.ones_like(i) }, -1);
@@ -124,9 +141,24 @@ namespace InstantNeRF
 
             Tensor rayOrigins = torch.broadcast_to(camToWorld.slice(0, 0, 3, 1).select(-1, camToWorld.size(-1) - 1), rayDirections.shape);
 
+
+            // alternate approach
+            /*
+            Tensor[] ij = torch.meshgrid(new List<Tensor> { torch.arange(0, height, 1), torch.arange(0, width, 1) });
+            Tensor iNorm = (ij[0] - K[0, 2]) / K[0, 0];
+            Tensor jNorm = (ij[1] - K[1, 2]) / K[1, 1];
+            Tensor rayDirsCam = torch.stack(new List<Tensor>() { iNorm,  jNorm, torch.ones_like(jNorm) }, -1);
+            Tensor rotation = camToWorld.slice(0, 0, 3, 1).slice(1, 0, 3, 1);
+            Tensor translation = camToWorld.slice(0, 0, 3, 1).select(1, 3);
+            Tensor rayDirsWorld = torch.matmul(rayDirsCam, rotation);
+            Tensor rayOrigins = translation.view(1, 1, 3).expand(height, width, -1);
+
+            rayDirsWorld = rayDirsWorld / torch.norm(rayDirsWorld, -1, keepdim: true);
+            return (rayOrigins, rayDirsWorld);
+            */
             return (rayOrigins, rayDirections);
         }
-       
+
         public static void printFirstNValues(Tensor t, int n, string name = "Tensor")
         {
             long dims = t.Dimensions;

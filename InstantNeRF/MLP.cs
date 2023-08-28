@@ -27,12 +27,10 @@ namespace InstantNeRF
             Tensor output;
             if (inference)
             {
-                Console.WriteLine("I N F E R E N C E");
                 output = tcnnMLP.inference(input);
             }
             else
             {
-                Console.WriteLine("F O R W A R D");
                 output = tcnnMLP.forward(input);
             }
 
@@ -47,7 +45,6 @@ namespace InstantNeRF
 
         public Tensor density(Tensor positionsFlat)
         {
-            Console.WriteLine("D E N S I T Y");
             Tensor output = tcnnMLP.density(positionsFlat);
 
             //remove the feature vectors to extract sigma
@@ -58,7 +55,6 @@ namespace InstantNeRF
 
         public Tensor backward(float gradScale)
         {
-            Console.WriteLine("B A C K W A R D");
             return tcnnMLP.backward(gradScale);
         }
 

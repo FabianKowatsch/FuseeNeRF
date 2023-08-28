@@ -61,8 +61,8 @@ namespace InstantNeRF
                     this.bgColor, 
                     sampler.rgbActivation, 
                     sampler.densityActivation, 
-                    dataInfo.aabbMin, 
-                    dataInfo.aabbMax);
+                    aabbMin, 
+                    aabbMax);
                 result.Add("rgb", rgbs);
                 result.Add("alpha", alphas);
                 return result;

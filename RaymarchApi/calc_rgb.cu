@@ -1,7 +1,6 @@
 #include "common.h"
 #include "raymarch_shared.h"
 #include "ray_sampler_header.h"
-
 template <typename TYPE>
 __global__ void compute_rgbs(
     const uint32_t n_rays,                      //batch total rays number
@@ -52,13 +51,12 @@ __global__ void compute_rgbs(
         const float alpha = 1.f - __expf(-density * dt);
         const float weight = alpha * T;
         rgb_ray += weight * rgb;
-
         T *= (1.f - alpha);
         network_output += padded_output_width;
         coords_in += 1;
     }
 
-    if (compacted_numsteps == numsteps_in[i * 2 + 0])
+    if (compacted_numsteps == numsteps)
     {
         rgb_ray += T * background_color;
     }
@@ -101,9 +99,6 @@ __global__ void compute_rgbs_grad(
     rgb_gt += i;
     rgb_ray += i;
 
-    if (i % 200 == 0) {
-        printf("RGBS/GT: R: %f / %f G: %f / %f B: %f / %f \n", rgb_ray->x(), rgb_gt->x(), rgb_ray->y(), rgb_gt->y(), rgb_ray->z(), rgb_gt->z());
-    }
     LossAndGradient loss_and_gradient = huber_loss(*rgb_gt, *rgb_ray) / 5.0f;
 
 
@@ -164,7 +159,7 @@ __global__ void compute_rgbs_inference(
     ENerfActivation density_activation,         //activation of density in output
     PitchedPtr<NerfCoordinate> coords_in,       //network input,(xyz,dt,dir)
     uint32_t *__restrict__ numsteps_in,         //rays offset and base counter
-    Array3f *__restrict__ rgb_output,                       //rays rgb output
+    Array3f *rgb_output,                       //rays rgb output
     float* __restrict__ alpha_output
     )
 {
@@ -181,6 +176,7 @@ __global__ void compute_rgbs_inference(
     {
         rgb_output[i] = background_color;
         alpha_output[i] = 0;
+        //printf("completely skipped sample \n");
         return;
     }
     coords_in += base;

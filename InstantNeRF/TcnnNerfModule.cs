@@ -59,8 +59,8 @@ namespace InstantNeRF
 
             if (this.dtype == torch.half)
             {
-                //this.lossScale = 128.0f;
                 this.lossScale = 1.0f;
+                //this.lossScale = 1.0f;
             }
             else
             {

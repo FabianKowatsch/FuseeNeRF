@@ -27,6 +27,8 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Bmp;
 
 namespace InstantNeRF
 {
@@ -69,70 +71,77 @@ namespace InstantNeRF
                 this.loadCheckpoint();
             }
         }
-        public (Tensor groundTruth, Tensor predictedRgb, Tensor loss) evalStep(Dictionary<string, Tensor> data)
+        public (Tensor predictedRgb, Tensor psnr) evalStep(DataProvider dataProvider)
         {
-            Tensor raysOrigin = data["raysOrigin"].to_type(torch.half);
-            Tensor raysDirection = data["raysDirection"].to_type(torch.half);
-            Tensor groundTruthImages = data["groundTruthImages"].to_type(torch.half);
-            long BATCH = groundTruthImages.shape[0];
-            long HEIGHT = groundTruthImages.shape[1];
-            long WIDTH = groundTruthImages.shape[2];
-            long COLOR = groundTruthImages.shape[3];
+            long batchSize = dataProvider.images.size(0);
+            int randomIndex = torch.randint(high: batchSize, size: new long[] {1L}).item<int>();
+            Tensor gtImage = dataProvider.images[randomIndex];
+            Tensor pose = dataProvider.poses[randomIndex];
+            (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose((int)gtImage.size(0), (int)gtImage.size(1), dataProvider.intrinsics, pose);
+            //(Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(width, height, intrinsics, pose);
 
-            Tensor images = groundTruthImages.slice(-1, 0, 3, 1);
+            raysO = raysO.reshape(-1, 3).to(CUDA); //from [H,W,3] to [H*W,3]
+            raysDir = raysDir.reshape(-1, 3).to(CUDA); //from [H,W,3] to [H*W,3]
+            Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "raysOrigin", raysO }, { "raysDirection", raysDir }, { "pose", pose.to(CUDA).contiguous() } };
 
-            Tensor bgColor = (COLOR == 3) ? 1.0f : torch.rand_like(images);
+            Tensor rgbOut = this.network.testStep(data).rgb;
+            Tensor predictedRGB = Utils.linearToSrgb(rgbOut);
+            Tensor psnr = Metrics.PSNR(predictedRGB, gtImage);
 
-            Tensor gtRGB;
-
-            if (COLOR == 4)
-            {
-                gtRGB = images * groundTruthImages.slice(-1, 3, -1, 1) + bgColor * (1 - groundTruthImages.slice(-1, 3, -1, 1));
-            }
-            else gtRGB = images;
-            Tensor rgbOut = this.network.testStep(data);
-
-            Tensor predictedRGB = rgbOut.reshape(BATCH, HEIGHT, WIDTH, 3);
-            //Tensor predictedDepth = depthOut.reshape(BATCH, HEIGHT, WIDTH);
-
-            Tensor loss = Metrics.PSNR(predictedRGB, gtRGB);
-
-            return (gtRGB, predictedRGB, loss);
+            return (predictedRGB, psnr);
         }
 
 
-        public byte[] inferenceStepRT(Tensor pose, Tensor intrinsics, int height, int width)
+        public byte[] inferenceStep(Tensor pose, Tensor intrinsics, int height, int width, DataProvider dataProvider)
         {
 
             using (var d = torch.NewDisposeScope())
             {
                 using (torch.no_grad())
                 {
-
-                    (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(width, height, intrinsics, pose);
+                    (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(width, height, dataProvider.intrinsics, dataProvider.poses[0]);
+                    //(Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(width, height, intrinsics, pose);
 
                     raysO = raysO.reshape(-1, 3).to(CUDA); //from [H,W,3] to [H*W,3]
                     raysDir = raysDir.reshape(-1, 3).to(CUDA); //from [H,W,3] to [H*W,3]
-                    Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "raysOrigin", raysO}, { "raysDirection", raysDir }, { "pose", pose.to(CUDA).contiguous() } };
+                    Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "raysOrigin", raysO }, { "raysDirection", raysDir }, { "pose", pose.to(CUDA).contiguous() } };
 
-                    Tensor rgbOut = this.network.testStep(data);
-                    Tensor imageFloat = rgbOut.reshape((long)height, (long)width, 3);
+                    Tensor rgbOut = this.network.testStep(data).rgb;
+                    //Tensor imageFloat = rgbOut.reshape((long)height, (long)width, 3);
+                    Tensor imageLinear = rgbOut.view(-1);
 
-                    Utils.printDims(imageFloat, "imageFloat");
-                    Utils.printMean(imageFloat, "imageFloat");
+                    if (this.globalStep % 25 == 0)
+                    {
+                        Utils.printMean(imageLinear, "imageLinear");
+                    }
 
-                    Tensor image = ByteTensor(Utils.linearToSrgb(imageFloat) * 255).to(CPU);
+
+                    //Tensor imageSRGB = Utils.linearToSrgb(imageLinear);
+
+                    Tensor image = ByteTensor(imageLinear * 255f).to(CPU);
                     byte[] buffer = image.data<byte>().ToArray();
 
-                    /*
-                    using (Image<Rgb24> imageToSave = Image.Load<Rgb24>(buffer))
+                    if (this.globalStep % 1000 == 0)
                     {
-                        // Save the RGB image to a file
-                        string outputPath = Path.Combine(this.savePath, "output_rgb_image_ " + this.globalStep + ".jpg");
-                        imageToSave.Save(outputPath, new JpegEncoder());
+                        using (Image<Rgb24> imageRaw = new Image<Rgb24>(Configuration.Default, width, height))
+                        {
+                            int index = 0;
+                            for (int y = 0; y < height; y++)
+                            {
+                                for (int x = 0; x < width; x++)
+                                {
+                                    byte r = buffer[index++];
+                                    byte g = buffer[index++];
+                                    byte b = buffer[index++];
+
+                                    imageRaw[y, x] = new Rgb24(r, g, b);
+                                }
+                            }
+                            string outputPath = Path.Combine(this.savePath, "output_rgb_image_ " + this.globalStep + ".jpg");
+                            imageRaw.Save(outputPath);
+                        }
                     }
-                    Console.ReadLine();
-                    */
+
                     //Temporary Memory cleanup
                     d.DisposeEverything();
                     TcnnWrapper.freeTemporaryMemory();
@@ -142,7 +151,7 @@ namespace InstantNeRF
             }
         }
 
-        public float trainStepRT(int step, DataProvider dataProvider)
+        public float trainStep(int step, DataProvider dataProvider)
         {
             float totalLoss = 0f;
 
@@ -157,8 +166,15 @@ namespace InstantNeRF
                 float lossValue = loss.item<float>();
                 totalLoss += lossValue;
 
-                Console.WriteLine("__________________________________");
-                Console.WriteLine("STEP: " + this.globalStep);
+                if (this.globalStep % 25 == 0)
+                {
+                    Console.WriteLine("_________________________");
+                    Console.WriteLine("STEP: " + this.globalStep);
+                    Console.WriteLine("------------------------");
+                    Console.WriteLine("LOSS: " + lossValue);
+                    Console.WriteLine("------------------------");
+                }
+
 
                 //Temporary Memory cleanup
                 d.DisposeEverything();
@@ -167,31 +183,6 @@ namespace InstantNeRF
                 this.globalStep++;
             }
             return totalLoss;
-        }
-
-
-        private void evaluateOneEpoch(DataProvider validLoader)
-        {
-            Console.WriteLine("==> Evaluating Epoch: " + this.epoch);
-
-            float totalLoss = 0;
-            using (torch.no_grad())
-            {
-                this.localStep = 0;
-                for (int index = 0; index < validLoader.batchSize; index++)
-                {
-
-                    Dictionary<string, Tensor> data = validLoader.getTrainData();
-                    (Tensor gtImage, Tensor predictedRGB, Tensor loss) = this.evalStep(data);
-
-                    float lossValue = loss.item<float>();
-                    totalLoss += lossValue;
-                }
-            }
-            float averageLoss = totalLoss / this.localStep;
-            stats.validLoss.Append(averageLoss);
-            stats.results.Append(averageLoss);
-
         }
 
         private string createDirectory(string subdir)
