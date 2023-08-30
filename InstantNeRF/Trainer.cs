@@ -74,7 +74,7 @@ namespace InstantNeRF
         public (Tensor predictedRgb, Tensor psnr) evalStep(DataProvider dataProvider)
         {
             long batchSize = dataProvider.images.size(0);
-            int randomIndex = torch.randint(high: batchSize, size: new long[] {1L}).item<int>();
+            int randomIndex = torch.randint(high: batchSize, size: new long[] { 1L }).item<int>();
             Tensor gtImage = dataProvider.images[randomIndex];
             Tensor pose = dataProvider.poses[randomIndex];
             (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose((int)gtImage.size(0), (int)gtImage.size(1), dataProvider.intrinsics, pose);
@@ -99,16 +99,17 @@ namespace InstantNeRF
             {
                 using (torch.no_grad())
                 {
-                    (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(width, height, dataProvider.intrinsics, dataProvider.poses[0]);
-                    //(Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(width, height, intrinsics, pose);
 
+                    //(Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(width, height, intrinsics, pose);
+                    (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(width, height, dataProvider.intrinsics, dataProvider.poses[0]);
+                    long[] imageShape = raysO.shape;
                     raysO = raysO.reshape(-1, 3).to(CUDA); //from [H,W,3] to [H*W,3]
                     raysDir = raysDir.reshape(-1, 3).to(CUDA); //from [H,W,3] to [H*W,3]
                     Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "raysOrigin", raysO }, { "raysDirection", raysDir }, { "pose", pose.to(CUDA).contiguous() } };
 
-                    Tensor rgbOut = this.network.testStep(data).rgb;
-                    //Tensor imageFloat = rgbOut.reshape((long)height, (long)width, 3);
-                    Tensor imageLinear = rgbOut.view(-1);
+                    Tensor rgbOut = this.network.testStep(data).rgb; // [H*W,3]
+                    rgbOut = rgbOut.reshape(imageShape).swapaxes(0, 1).flip(0); // [H,W,3]
+                    Tensor imageLinear = rgbOut.flatten(); // [H * W * 3]
 
                     if (this.globalStep % 25 == 0)
                     {
@@ -134,7 +135,7 @@ namespace InstantNeRF
                                     byte g = buffer[index++];
                                     byte b = buffer[index++];
 
-                                    imageRaw[y, x] = new Rgb24(r, g, b);
+                                    imageRaw[x, y] = new Rgb24(r, g, b);
                                 }
                             }
                             string outputPath = Path.Combine(this.savePath, "output_rgb_image_ " + this.globalStep + ".jpg");

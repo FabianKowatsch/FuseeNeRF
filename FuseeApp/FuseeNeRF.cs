@@ -35,6 +35,7 @@ namespace FuseeApp
         private Texture _bltDestinationTex;
 
         private Transform _simulatingCamPivotTransform;
+        private SceneNode _simulatingCam;
         private SceneContainer _camScene;
         private const float ZNear = 0.1f;
         private const float ZFar = 10f;
@@ -94,8 +95,8 @@ namespace FuseeApp
                 "Blt",
                 _bltDestinationTex,
                 GuiElementPosition.GetAnchors(AnchorPos.Middle),
-                GuiElementPosition.CalcOffsets(AnchorPos.DownDownLeft, new float2(0, 0), _initCanvasWidth, _initCanvasHeight, new float2(9, 9)),
-                float2.One);
+                GuiElementPosition.CalcOffsets(AnchorPos.Middle, new float2(0, 0), _initCanvasHeight, _initCanvasWidth, new float2(9, 9)),
+                new float2(1, 1));
 
 
             var canvas = new CanvasNode(
@@ -114,7 +115,7 @@ namespace FuseeApp
                 }
             };
 
-            canvas.AddComponent(MakeEffect.FromDiffuseSpecular((float4)ColorUint.Red));
+            canvas.AddComponent(MakeEffect.FromDiffuseSpecular((float4)ColorUint.Black));
             canvas.AddComponent(new Plane());
 
             _camPivot = new Transform()
@@ -253,7 +254,7 @@ namespace FuseeApp
                 raw[i] = 0;
             }
             ImagePixelFormat format = new ImagePixelFormat(ColorFormat.RGB);
-            _bltDestinationTex = new Texture(raw, _renderWidth, _renderHeight, format, false, wrapMode: TextureWrapMode.Repeat, filterMode: TextureFilterMode.Linear);
+            _bltDestinationTex = new Texture(raw, _renderWidth, _renderHeight, format, false, wrapMode: TextureWrapMode.Repeat, filterMode: TextureFilterMode.Nearest);
 
 
             // Actual rendered scene
@@ -264,21 +265,23 @@ namespace FuseeApp
             _camScene = new SceneContainer();
             _simulatingCamPivotTransform = new Transform();
             _camera = new Camera(ProjectionMethod.Perspective, ZNear, ZFar, _fovy) { BackgroundColor = float4.Zero };
+
+            _simulatingCam = new SceneNode()
+            {
+                Name = "SimulatingCam",
+                Components = new List<SceneComponent>()
+                        {
+                            new Transform() { Translation = new float3(0, 0, -4) },
+                            _camera
+
+                        }
+            };
             var camNode = new SceneNode()
             {
                 Name = "SimulatingCamNode",
                 Children = new ChildList()
                 {
-                    new SceneNode()
-                    {
-                        Name = "SimulatingCam",
-                        Components = new List<SceneComponent>()
-                        {
-                            new Transform() { Translation = new float3(0, 0, 0) },
-                            _camera
-
-                        }
-                    }
+                    _simulatingCam
                 },
                 Components = new List<SceneComponent>()
                 {
@@ -294,27 +297,24 @@ namespace FuseeApp
             if (currentStep <= stepsToTrain)
             {
                 TrainStep();
-                InferenceStep();
 
                 if(currentStep == stepsToTrain)
                 {
                     Console.ReadLine();
                 }
             }
+            InferenceStep();
         }
 
         private void InferenceStep()
         {
             //pose
 
-            float[] matrix = _simulatingCamPivotTransform.Matrix.ToArray();
+            float[] matrix = _simulatingCam.GetGlobalTransformation().ToArray();
 
             Tensor pose = torch.from_array(matrix).reshape(4, 4);
 
-            Tensor poseConverted = Utils.matrixToNGP(pose, _config.aabbScale, _config.offset);
-
             //intrinsics
-
 
             float[,] intrinsicsArray = new float[,] {
                 { _focalX, 0f, _centerX },
@@ -322,6 +322,7 @@ namespace FuseeApp
                 {0f, 0f, 1f }
             };
             Tensor intrinsics = torch.from_array(intrinsicsArray);
+            Tensor poseConverted  = Utils.fuseeMatrixToNGP(pose, _config.aabbScale, _config.offset);
 
             byte[] buffer = _trainer.inferenceStep(poseConverted, intrinsics, _renderHeight, _renderWidth, _dataProvider);
             ImagePixelFormat format = new ImagePixelFormat(ColorFormat.RGB);
@@ -392,7 +393,7 @@ namespace FuseeApp
             _angleHorz += _angleVelHorz;
             _angleVert += _angleVelVert;
 
-            _camPivot.RotationQuaternion = QuaternionF.FromEuler(_angleVert, _angleHorz, 0);
+            _simulatingCamPivotTransform.RotationQuaternion = QuaternionF.FromEuler(_angleVert, _angleHorz, 0);
         }
 
 
@@ -400,7 +401,7 @@ namespace FuseeApp
         // RenderAFrame is called once a frame
         public override void RenderAFrame()
         {
-
+            Console.WriteLine("FPS: " + Time.FramesPerSecond.ToString("0.00"));
             _sceneRenderer.Render(RC);
 
             // Swap buffers: Show the contents of the back buffer (containing the currently rendered frame) on the front buffer.

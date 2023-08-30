@@ -21,16 +21,9 @@ SOFTWARE.*/
 
 //custom implementation based on https://github.com/ashawkey/torch-ngp/blob/main/nerf/provider.py and https://github.com/ashawkey/torch-ngp/blob/main/nerf/utils.py
 
-using ICSharpCode.SharpZipLib.Zip;
-using SkiaSharp;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using TorchSharp;
 using TorchSharp.Modules;
-using static Tensorboard.TensorShapeProto.Types;
 using static TorchSharp.torch;
-using static TorchSharp.torch.utils.data;
 
 namespace InstantNeRF
 {
@@ -70,11 +63,11 @@ namespace InstantNeRF
                 posesList.Add(pose);
             }
             Tensor result = torch.stack(posesList).to(float32);
-            //return result.permute(0, 2, 1);
             return result;
         }
         public static Tensor matrixToNGP(Tensor matrix, float scale, float[] offset)
         {
+            // used in torch-ngp
             /*
            TorchSharp.Utils.TensorAccessor<float> pose = matrix.data<float>();
            float[,] output = new float[,]
@@ -87,7 +80,7 @@ namespace InstantNeRF
            return torch.from_array(output, dtype: torch.float32);
            */
 
-
+            // following instant-ngps / XRNerfs matrix transformations
             Tensor ngpMatrix = matrix.slice(0, 0, 3, 1).slice(1, 0, 4, 1).t();
             ngpMatrix[0] *= 1;
             ngpMatrix[1] *= -1;
@@ -100,6 +93,20 @@ namespace InstantNeRF
             ngpMatrix = ngpMatrix.index_select(1, permutation);
             return ngpMatrix.t();
 
+        }
+
+        public static Tensor fuseeMatrixToNGP(Tensor matrix, float scale, float[] offset)
+        {
+            Tensor ngpMatrix = matrix.slice(0, 0, 3, 1).slice(1, 0, 4, 1).t();
+
+            ngpMatrix[0] *= 1;
+            ngpMatrix[1] *= -1;
+            ngpMatrix[2] *= -1;
+            ngpMatrix[3, 0] = ngpMatrix[3, 0] * scale + offset[0];
+            ngpMatrix[3, 1] = ngpMatrix[3, 1] * scale + offset[1];
+            ngpMatrix[3, 2] = ngpMatrix[3, 2] * scale + offset[2];
+
+            return ngpMatrix.t();
         }
 
         public static Tensor loadRays(Tensor poses, Tensor images, Tensor K, int width, int height)
@@ -130,8 +137,9 @@ namespace InstantNeRF
 
         public static (Tensor rayOrigins, Tensor rayDirections) getRaysFromPose(int width, int height, Tensor K, Tensor camToWorld)
         {
+            // approach following the work in XRNerf
 
-            Tensor[] ij = torch.meshgrid(new List<Tensor> { torch.arange(0, width, 1), torch.arange(0, height, 1) });
+            Tensor[] ij = torch.meshgrid(new List<Tensor> { torch.arange(0, width, 1, float32), torch.arange(0, height, 1, float32) });
             Tensor i = ij[0].t() + 0.5f;
             Tensor j = ij[1].t() + 0.5f;
             Tensor directions = torch.stack(new List<Tensor> { (i - K[0][2]) / K[0][0], (j - K[1][2]) / K[1][1], torch.ones_like(i) }, -1);
@@ -142,23 +150,24 @@ namespace InstantNeRF
             Tensor rayOrigins = torch.broadcast_to(camToWorld.slice(0, 0, 3, 1).select(-1, camToWorld.size(-1) - 1), rayDirections.shape);
 
 
-            // alternate approach
+            // alternate approach following the strict algorithm of generating rays, similar results
             /*
-            Tensor[] ij = torch.meshgrid(new List<Tensor> { torch.arange(0, height, 1), torch.arange(0, width, 1) });
+            Tensor[] ij = torch.meshgrid(new List<Tensor> { torch.arange(0, height, 1, float32), torch.arange(0, width, 1, float32) });
             Tensor iNorm = (ij[0] - K[0, 2]) / K[0, 0];
             Tensor jNorm = (ij[1] - K[1, 2]) / K[1, 1];
             Tensor rayDirsCam = torch.stack(new List<Tensor>() { iNorm,  jNorm, torch.ones_like(jNorm) }, -1);
             Tensor rotation = camToWorld.slice(0, 0, 3, 1).slice(1, 0, 3, 1);
             Tensor translation = camToWorld.slice(0, 0, 3, 1).select(1, 3);
-            Tensor rayDirsWorld = torch.matmul(rayDirsCam, rotation);
+            Tensor rayDirections = torch.matmul(rayDirsCam, rotation.t());
             Tensor rayOrigins = translation.view(1, 1, 3).expand(height, width, -1);
 
-            rayDirsWorld = rayDirsWorld / torch.norm(rayDirsWorld, -1, keepdim: true);
-            return (rayOrigins, rayDirsWorld);
+            rayDirections = rayDirections / torch.norm(rayDirections, -1, keepdim: true);
             */
+
             return (rayOrigins, rayDirections);
         }
 
+        // Helper functions for debugging
         public static void printFirstNValues(Tensor t, int n, string name = "Tensor")
         {
             long dims = t.Dimensions;
@@ -219,6 +228,20 @@ namespace InstantNeRF
             }
             Console.WriteLine(" ");
         }
+
+        public static void print2DTensor(Tensor t, string name = "Tensor")
+        {
+            Console.WriteLine(name + ": type: " + t.dtype + " device: " + t.device + " n: " + t.numel());
+            for (int i = 0; i < t.size(0); i++)
+            {
+
+                for (int j = 0; j < t.size(1); j++)
+                {
+                    Console.WriteLine(name + " : [" + i + "," + j + "]" + " = " + t[i, j].item<float>());
+                }
+            }
+            Console.WriteLine(" ");
+        }
     }
     public enum ColorSpace
     {
@@ -232,6 +255,7 @@ namespace InstantNeRF
         TEST = 2
     }
 
+    // unused since the addition of tiny-cuda-nn's optimizer
     public class ExponentialMovingAverage
     {
 

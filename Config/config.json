@@ -9,9 +9,9 @@
   "offset": [ 0.5, 0.5, 0.5 ],
   "bgColor": [ 1.0, 1.0, 1.0 ],
   "useRandomBgColor":  true,
-  "imageDownscale": 2.0,
+  "imageDownscale": 8.0,
   "nRays": 4096,
-  "stepsToTrain":  30000,
+  "stepsToTrain":  3000,
   "gradScale": 1.0,
   "optimizerCfg": {
     "otype": "Ema",
