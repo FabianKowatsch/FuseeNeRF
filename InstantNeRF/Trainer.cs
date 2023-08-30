@@ -52,8 +52,6 @@ namespace InstantNeRF
             string name,
             Optimizer optimizer,
             Network network,
-            int evalEveryNEpochs = 50,
-            bool updateSchedulerEveryStep = true,
             int nIterations = 30000,
             string subdirectoryName = "workspace",
             bool loadCheckpoint = false)
@@ -99,29 +97,33 @@ namespace InstantNeRF
             {
                 using (torch.no_grad())
                 {
+                    //This is currently not working correctly due to wrong pose transformations. To see results (that are also not correct), use the code below
 
-                    //(Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(width, height, intrinsics, pose);
-                    (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(width, height, dataProvider.intrinsics, dataProvider.poses[0]);
+                    (Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(width, height, intrinsics, pose);
+
+                    //(Tensor raysO, Tensor raysDir) = Utils.getRaysFromPose(width, height, dataProvider.intrinsics, dataProvider.poses[0]);
+
+                    //flatten the iamge
+
                     long[] imageShape = raysO.shape;
                     raysO = raysO.reshape(-1, 3).to(CUDA); //from [H,W,3] to [H*W,3]
                     raysDir = raysDir.reshape(-1, 3).to(CUDA); //from [H,W,3] to [H*W,3]
+
+                    //inference pass
+
                     Dictionary<string, Tensor> data = new Dictionary<string, Tensor>() { { "raysOrigin", raysO }, { "raysDirection", raysDir }, { "pose", pose.to(CUDA).contiguous() } };
 
                     Tensor rgbOut = this.network.testStep(data).rgb; // [H*W,3]
+
+                    // Transform the result into a byte buffer that can be used to update the texture
+
                     rgbOut = rgbOut.reshape(imageShape).swapaxes(0, 1).flip(0); // [H,W,3]
                     Tensor imageLinear = rgbOut.flatten(); // [H * W * 3]
-
-                    if (this.globalStep % 25 == 0)
-                    {
-                        Utils.printMean(imageLinear, "imageLinear");
-                    }
-
-
-                    //Tensor imageSRGB = Utils.linearToSrgb(imageLinear);
-
                     Tensor image = ByteTensor(imageLinear * 255f).to(CPU);
                     byte[] buffer = image.data<byte>().ToArray();
 
+
+                    // Optional: Save an iamge every 1000 steps in a subdirectory
                     if (this.globalStep % 1000 == 0)
                     {
                         using (Image<Rgb24> imageRaw = new Image<Rgb24>(Configuration.Default, width, height))
@@ -154,7 +156,7 @@ namespace InstantNeRF
 
         public float trainStep(int step, DataProvider dataProvider)
         {
-            float totalLoss = 0f;
+            float lossValue = 0;
 
             using (var d = torch.NewDisposeScope())
             {
@@ -162,19 +164,7 @@ namespace InstantNeRF
 
                 Tensor loss = this.network.trainStep(data, optimizer);
 
-                //torch.nn.utils.clip_grad_norm_(network.mlp.parameters(), 2.0);
-
-                float lossValue = loss.item<float>();
-                totalLoss += lossValue;
-
-                if (this.globalStep % 25 == 0)
-                {
-                    Console.WriteLine("_________________________");
-                    Console.WriteLine("STEP: " + this.globalStep);
-                    Console.WriteLine("------------------------");
-                    Console.WriteLine("LOSS: " + lossValue);
-                    Console.WriteLine("------------------------");
-                }
+                lossValue = loss.item<float>();
 
 
                 //Temporary Memory cleanup
@@ -183,7 +173,7 @@ namespace InstantNeRF
 
                 this.globalStep++;
             }
-            return totalLoss;
+            return lossValue;
         }
 
         private string createDirectory(string subdir)
@@ -209,6 +199,8 @@ namespace InstantNeRF
             }
         }
 
+
+        // Saving and loading a model is currently not supported
         public void saveCheckpoint(string? name)
         {
             string checkpointName = name ?? "" + this.name + "_ep" + this.epoch.ToString("D4");
@@ -216,10 +208,6 @@ namespace InstantNeRF
             State state = new State();
             state.epoch = this.epoch;
             state.globalStep = this.globalStep;
-            //state.network = this.state_dict();
-            //state.meanCount = this.nerfRenderer.meanCount;
-            //state.meanDensity = this.nerfRenderer.meanDensity;
-            //state.optimizer = this.optimizer.state_dict();
             state.lastIteration = lastIter;
             string pathToFile = "" + this.checkpointPath + "/" + checkpointName + ".json";
             this.stats.checkpoints.Append(pathToFile);
@@ -238,14 +226,9 @@ namespace InstantNeRF
 
             string jsonString = File.ReadAllText(checkpoint);
             var state = JsonSerializer.Deserialize<State>(jsonString);
-            //this.nerfRenderer.load_state_dict(state.network, strict: false);
-            //this.nerfRenderer.meanCount = state.meanCount;
-            //this.nerfRenderer.meanDensity = state.meanDensity;
             this.stats = state.stats;
             this.epoch = state.epoch;
             this.globalStep = state.globalStep;
-            //this.optimizer.load_state_dict(state.optimizer);
-            //this.scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda: iter => lambdaLR(state.lastIteration + iter));
         }
 
     }

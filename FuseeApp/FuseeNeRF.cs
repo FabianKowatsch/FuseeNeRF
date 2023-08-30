@@ -190,7 +190,7 @@ namespace FuseeApp
             }
             catch (Exception e)
             {
-                Console.WriteLine("an error occured while loading a ´native library:" + e);
+                Console.WriteLine("an error occured while loading the native library torch.dll:" + e);
             }
 
             try
@@ -199,21 +199,25 @@ namespace FuseeApp
 
                 _config = new Config();
 
+                // Datasets
+
                 DataProvider trainData = new DataProvider(device, _config.dataPath, _config.trainDataFilename, "train", _config.imageDownscale, _config.aabbScale, _config.aabbMin, _config.aabbMax, _config.offset, _config.bgColor, _config.nRays, preload: false, _config.datasetType, _config.useRandomBgColor);
                 DataProvider evalData = new DataProvider(device, _config.dataPath, _config.evalDataFilename, "val", _config.imageDownscale, _config.aabbScale, _config.aabbMin, _config.aabbMax, _config.offset, _config.bgColor, _config.nRays, preload: false, _config.datasetType, _config.useRandomBgColor);
-                Console.WriteLine("created datasets");
+
+                // Grid Sampler used for generaing training samples and updating the density grid
 
                 GridSampler sampler = new GridSampler(trainData);
-                Console.WriteLine("created gridsampler");
+
+                //The network combines the Sampler, MLP and Volume Renderer
 
                 Network network = new Network(sampler, _config.gradScale, _config.bgColor, _config.dirEncodingCfg, _config.posEncodingCfg, _config.sigmaNetCfg, _config.colorNetCfg);
-                Console.WriteLine("created net");
+
+
+                // The Trainer class provides methods for using the network in training, inference or eval mode
 
                 Optimizer optimizer = new Optimizer(_config.optimizerCfg, network.mlp);
-                Console.WriteLine("created optimizer");
-
                 Trainer trainer = new Trainer("NGP001", optimizer, network, 1, subdirectoryName: "workspace_lego_synthetic");
-                Console.WriteLine("created trainer");
+
 
                 _trainer = trainer;
                 _dataProvider = trainData;
@@ -242,12 +246,18 @@ namespace FuseeApp
             _canvasHeight = _initCanvasHeight;
             _canvasWidth = _initCanvasWidth;
 
+            // Sets the render resolution for inference
 
             _renderWidth = 800 / (int)_config.imageDownscale;
             _renderHeight = 800 / (int)_config.imageDownscale;
             stepsToTrain = (int)_config.stepsToTrain;
 
+            // Update the intrinsics used for inference. Can potentially be called after updating the FOV of the camera
+
             UpdateIntrinsics((float)_renderWidth, (float)_renderHeight, this._fovy);
+
+            // Initialize the texture
+
             byte[] raw = new byte[_renderWidth * _renderHeight * 3];
             for (int i = 0; i < raw.Length; i++)
             {
@@ -294,14 +304,11 @@ namespace FuseeApp
         public override void Update()
         {
             Controls();
+
             if (currentStep <= stepsToTrain)
             {
                 TrainStep();
 
-                if(currentStep == stepsToTrain)
-                {
-                    Console.ReadLine();
-                }
             }
             InferenceStep();
         }
@@ -335,7 +342,15 @@ namespace FuseeApp
         }
         private void TrainStep()
         {
+            // Train the network and log the loss every 25 steps
+
             float loss = _trainer.trainStep(currentStep, _dataProvider);
+
+            if(this.currentStep % 25 == 0)
+            {
+                Console.WriteLine("LOSS: " +  loss);
+            }
+
             currentStep++;
         }
 
@@ -348,7 +363,7 @@ namespace FuseeApp
         }
         private void Controls()
         {
-            // Mouse and keyboard movement
+            // Mouse and keyboard movement, rotates the camera around the center of the scene
             if (Input.Keyboard.LeftRightAxis != 0 || Input.Keyboard.UpDownAxis != 0)
             {
                 _keys = true;

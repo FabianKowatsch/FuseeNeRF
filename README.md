@@ -148,7 +148,7 @@ This issue also causes the controls of the viewer to work incorrectly, so a defa
 
 ## License
 
-This project uses code from various codebases and is limited by their restrictions. The licenses can found in the corresponding subdirectories
+This project uses code from various codebases and is limited by their restrictions. The licenses can found in the subdirectories using the corresponding license.
 
 ## References
 
