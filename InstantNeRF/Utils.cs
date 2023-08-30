@@ -1,25 +1,18 @@
 ﻿/*
-Copyright (c) 2022 hawkey
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.  All rights reserved.
+ *
+ * NVIDIA CORPORATION and its licensors retain all intellectual property
+ * and proprietary rights in and to this software, related documentation
+ * and any modifications thereto.  Any use, reproduction, disclosure or
+ * distribution of this software and related documentation without an express
+ * license agreement from NVIDIA CORPORATION is strictly prohibited.
+ */
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.*/
-
-//custom implementation based on https://github.com/ashawkey/torch-ngp/blob/main/nerf/provider.py and https://github.com/ashawkey/torch-ngp/blob/main/nerf/utils.py
+// custom implementation based on https://github.com/NVlabs/instant-ngp/blob/master/src/nerf_loader.cu , 
+// https://github.com/NVlabs/instant-ngp/blob/master/include/neural-graphics-primitives/nerf_loa
+// https://github.com/openxrlab/xrnerf/blob/main/xrnerf/datasets/utils/hashnerf.py ,
+// https://github.com/openxrlab/xrnerf/blob/main/xrnerf/datasets/load_data/get_rays.py#L35 ,
+// https://github.com/ashawkey/torch-ngp/blob/main/nerf/utils.py
 
 using TorchSharp;
 using TorchSharp.Modules;
@@ -158,7 +151,7 @@ namespace InstantNeRF
             Tensor rayDirsCam = torch.stack(new List<Tensor>() { iNorm,  jNorm, torch.ones_like(jNorm) }, -1);
             Tensor rotation = camToWorld.slice(0, 0, 3, 1).slice(1, 0, 3, 1);
             Tensor translation = camToWorld.slice(0, 0, 3, 1).select(1, 3);
-            Tensor rayDirections = torch.matmul(rayDirsCam, rotation.t());
+            Tensor rayDirections = torch.matmul(rayDirsCam, rotation);
             Tensor rayOrigins = translation.view(1, 1, 3).expand(height, width, -1);
 
             rayDirections = rayDirections / torch.norm(rayDirections, -1, keepdim: true);

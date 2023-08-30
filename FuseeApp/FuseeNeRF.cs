@@ -86,7 +86,7 @@ namespace FuseeApp
 
         private Transform _camPivot;
 
-        //Build a scene graph consisting out of a canvas and other UI elements.
+        //Build a scene graph consisting of a canvas and other UI elements.
         private SceneContainer CreateScene()
         {
 
@@ -260,8 +260,8 @@ namespace FuseeApp
             // Actual rendered scene
             _scene = CreateScene();
 
-            //Scene simulated the camera rendering the NeRF
-            //Simulate Camera to get the poses required for inference
+            //Simulating Camera to get the poses required for inference
+
             _camScene = new SceneContainer();
             _simulatingCamPivotTransform = new Transform();
             _camera = new Camera(ProjectionMethod.Perspective, ZNear, ZFar, _fovy) { BackgroundColor = float4.Zero };
@@ -311,8 +311,8 @@ namespace FuseeApp
             //pose
 
             float[] matrix = _simulatingCam.GetGlobalTransformation().ToArray();
-
             Tensor pose = torch.from_array(matrix).reshape(4, 4);
+            Tensor poseConverted = Utils.fuseeMatrixToNGP(pose, _config.aabbScale, _config.offset);
 
             //intrinsics
 
@@ -322,29 +322,21 @@ namespace FuseeApp
                 {0f, 0f, 1f }
             };
             Tensor intrinsics = torch.from_array(intrinsicsArray);
-            Tensor poseConverted  = Utils.fuseeMatrixToNGP(pose, _config.aabbScale, _config.offset);
+
+            //inference pass
 
             byte[] buffer = _trainer.inferenceStep(poseConverted, intrinsics, _renderHeight, _renderWidth, _dataProvider);
+
+            //update the texture
+
             ImagePixelFormat format = new ImagePixelFormat(ColorFormat.RGB);
             ImageData data = new ImageData(buffer, _renderWidth, _renderHeight, format);
-
             _bltDestinationTex.Blt(0, 0, data);
         }
         private void TrainStep()
         {
             float loss = _trainer.trainStep(currentStep, _dataProvider);
             currentStep++;
-        }
-
-        private void setInitialPose()
-        {
-            float[,] startingPose = _dataProvider.getStartingPose();
-            float4x4 matrix = float4x4.Zero;
-            matrix.Row1 = new float4(startingPose[0, 0], startingPose[0, 1], startingPose[0, 2], startingPose[0, 3]);
-            matrix.Row2 = new float4(startingPose[1, 0], startingPose[1, 1], startingPose[1, 2], startingPose[1, 3]);
-            matrix.Row3 = new float4(startingPose[2, 0], startingPose[2, 1], startingPose[2, 2], startingPose[2, 3]);
-            matrix.Row4 = new float4(startingPose[3, 0], startingPose[3, 1], startingPose[3, 2], startingPose[3, 3]);
-            _simulatingCamPivotTransform.Matrix = matrix;
         }
 
         private void UpdateIntrinsics(float sensorWidth, float sensorHeight, float fov)
